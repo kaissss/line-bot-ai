@@ -13,6 +13,7 @@ const config = {
 const client = new line.Client(config);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const conversations = new Map();
+const userRequestTimestamps = new Map(); // Track user request timestamps
 
 // Get bot info (for mention detection)
 let botUserId = null;
@@ -108,6 +109,32 @@ async function handleEvent(event) {
 }
 
 async function processMessage(event, userId, userMessage) {
+  // Check rate limit (10 requests per minute)
+  const now = Date.now();
+  const oneMinuteAgo = now - 60000; // 60 seconds
+  
+  if (!userRequestTimestamps.has(userId)) {
+    userRequestTimestamps.set(userId, []);
+  }
+  
+  const timestamps = userRequestTimestamps.get(userId);
+  
+  // Remove timestamps older than 1 minute
+  const recentTimestamps = timestamps.filter(timestamp => timestamp > oneMinuteAgo);
+  
+  // Check if user has exceeded rate limit
+  if (recentTimestamps.length >= 10) {
+    console.log(`⚠️ Rate limit exceeded for user ${userId}`);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '你問題太多了!',
+    });
+  }
+  
+  // Add current timestamp
+  recentTimestamps.push(now);
+  userRequestTimestamps.set(userId, recentTimestamps);
+  
   // Handle reset command
   if (userMessage.toLowerCase() === '/reset') {
     conversations.delete(userId);

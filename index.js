@@ -12,32 +12,42 @@ const config = {
 
 const client = new line.Client(config);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-// Store conversation history per user
 const conversations = new Map();
 
-app.post('/webhook-test', express.json(), async (req, res) => {
-  console.log('📨 Test webhook');
+// Get bot info (for mention detection)
+let botUserId = null;
+
+async function getBotInfo() {
   try {
-    await Promise.all(req.body.events.map(handleEvent));
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: err.message });
+    const profile = await client.getBotInfo();
+    botUserId = profile.userId;
+    console.log('✅ Bot User ID:', botUserId);
+  } catch (error) {
+    console.error('Failed to get bot info:', error);
   }
+}
+
+// Initialize bot info on startup
+getBotInfo();
+
+app.get('/', (req, res) => {
+  res.send('LINE Bot is running! 🤖');
 });
 
 app.post('/webhook', line.middleware(config), async (req, res) => {
+  console.log('📨 Webhook received');
+  
   try {
     await Promise.all(req.body.events.map(handleEvent));
-    res.json({ success: true });
+    res.status(200).json({ success: true });
   } catch (err) {
-    console.error('Error:', err);
+    console.error('❌ Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 async function handleEvent(event) {
+  // Only handle text messages
   if (event.type !== 'message' || event.message.type !== 'text') {
     return null;
   }
@@ -45,16 +55,62 @@ async function handleEvent(event) {
   const userId = event.source.userId;
   const userMessage = event.message.text;
 
-  console.log(`👤 User ${userId}: ${userMessage}`);
+  // ✅ CHECK 1: In 1-on-1 chat, always respond
+  if (event.source.type === 'user') {
+    console.log(`👤 Direct message from ${userId}: ${userMessage}`);
+    return await processMessage(event, userId, userMessage);
+  }
 
+  // ✅ CHECK 2: In group/room chat, only respond if mentioned
+  if (event.source.type === 'group' || event.source.type === 'room') {
+    const mention = event.message.mention;
+    
+    // Check if bot is mentioned
+    if (mention && mention.mentionees) {
+      const isBotMentioned = mention.mentionees.some(
+        mentionee => mentionee.userId === botUserId
+      );
+      
+      if (isBotMentioned) {
+        console.log(`👥 Mentioned in group: ${userMessage}`);
+        
+        // Remove @mention from message for cleaner processing
+        let cleanMessage = userMessage;
+        mention.mentionees.forEach(mentionee => {
+          // Remove @display_name from message
+          cleanMessage = cleanMessage.replace(`@${mentionee.userId}`, '').trim();
+        });
+        
+        return await processMessage(event, userId, cleanMessage || userMessage);
+      }
+    }
+    
+    // Not mentioned, ignore
+    console.log(`🔇 Not mentioned in group, ignoring message`);
+    return null;
+  }
+
+  return null;
+}
+
+async function processMessage(event, userId, userMessage) {
+  // Handle reset command
   if (userMessage.toLowerCase() === '/reset') {
     conversations.delete(userId);
-    const msg = '🔄 Chat cleared!';
+    console.log('🔄 Chat reset');
     
-    if (event.replyToken === 'test-reply-token') {
-      return { message: msg };
-    }
-    return client.replyMessage(event.replyToken, { type: 'text', text: msg });
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '🔄 Conversation history cleared!',
+    });
+  }
+
+  // Handle help command
+  if (userMessage.toLowerCase() === '/help') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '🤖 Commands:\n/reset - Clear chat\n/help - Show this\n\n💡 In groups, mention me (@bot) to chat!',
+    });
   }
 
   try {
@@ -71,25 +127,23 @@ async function handleEvent(event) {
       history.splice(0, 2);
     }
 
+    console.log('🤖 Calling AI...');
+
     // Call Groq API
     const chatCompletion = await groq.chat.completions.create({
       messages: [
-        { role: 'system', content: 'You are a helpful assistant in a LINE chat.' },
+        { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
         ...history
       ],
-      model: 'llama-3.3-70b-versatile', // Fast & smart model
+      model: 'llama-3.3-70b-versatile',
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 500,
     });
 
     const aiResponse = chatCompletion.choices[0].message.content;
     history.push({ role: 'assistant', content: aiResponse });
 
-    console.log(`🤖 AI: ${aiResponse}`);
-
-    if (event.replyToken === 'test-reply-token') {
-      return { message: aiResponse };
-    }
+    console.log('✅ Sending response');
 
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -97,25 +151,16 @@ async function handleEvent(event) {
     });
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    const errorMsg = '😅 Sorry, something went wrong!';
-    
-    if (event.replyToken === 'test-reply-token') {
-      return { error: error.message };
-    }
+    console.error('❌ AI Error:', error);
     
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: errorMsg,
+      text: '😅 Sorry, something went wrong!',
     });
   }
 }
 
-app.get('/', (req, res) => {
-  res.send('LINE Bot with Groq is running! 🤖');
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });

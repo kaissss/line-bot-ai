@@ -17,15 +17,18 @@ const conversations = new Map();
 // Get bot info (for mention detection)
 let botUserId = null;
 let botUsername = null;
+let botDisplayName = null;
 
 async function getBotInfo() {
   try {
     const profile = await client.getBotInfo();
     botUserId = profile.userId;
     botUsername = profile.basicId; // This is the @username
+    botDisplayName = profile.displayName;
+
     console.log('✅ Bot User ID:', botUserId);
     console.log('✅ Bot Username:', botUsername);
-    console.log('✅ Display Name:', profile.displayName);
+    console.log('✅ Display Name:', botDisplayName);
   } catch (error) {
     console.error('Failed to get bot info:', error);
   }
@@ -90,9 +93,9 @@ async function handleEvent(event) {
     }
     
     // Check for text mention (e.g., from computer clients that can't use @mention)
-    if (userMessage.includes(`@${botUsername}`)) {
+    if (userMessage.toLowerCase().includes(`@${botDisplayName}`.toLowerCase())) {
       console.log(`👥 Text mentioned in group: ${userMessage}`);
-      const cleanMessage = userMessage.replace(`@${botUsername}`, '').trim();
+      const cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
       return await processMessage(event, userId, cleanMessage || userMessage);
     }
     

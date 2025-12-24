@@ -68,21 +68,28 @@ async function handleEvent(event) {
     // Check if bot is mentioned
     if (mention && mention.mentionees) {
       const isBotMentioned = mention.mentionees.some(
-        mentionee => mentionee.userId === botUserId
+      mentionee => mentionee.userId === botUserId
       );
       
       if (isBotMentioned) {
-        console.log(`👥 Mentioned in group: ${userMessage}`);
-        
-        // Remove @mention from message for cleaner processing
-        let cleanMessage = userMessage;
-        mention.mentionees.forEach(mentionee => {
-          // Remove @display_name from message
-          cleanMessage = cleanMessage.replace(`@${mentionee.userId}`, '').trim();
-        });
-        
-        return await processMessage(event, userId, cleanMessage || userMessage);
+      console.log(`👥 Mentioned in group: ${userMessage}`);
+      
+      // Remove @mention from message for cleaner processing
+      let cleanMessage = userMessage;
+      mention.mentionees.forEach(mentionee => {
+        // Remove @display_name from message
+        cleanMessage = cleanMessage.replace(`@${mentionee.userId}`, '').trim();
+      });
+      
+      return await processMessage(event, userId, cleanMessage || userMessage);
       }
+    }
+    
+    // Check for text mention (e.g., from computer clients that can't use @mention)
+    if (userMessage.includes(`@${botUserId}`)) {
+      console.log(`👥 Text mentioned in group: ${userMessage}`);
+      const cleanMessage = userMessage.replace(`@${botUserId}`, '').trim();
+      return await processMessage(event, userId, cleanMessage || userMessage);
     }
     
     // Not mentioned, ignore

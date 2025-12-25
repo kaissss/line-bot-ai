@@ -44,7 +44,7 @@ app.get('/', (req, res) => {
 
 app.post('/webhook', line.middleware(config), async (req, res) => {
   console.log('📨 Webhook received');
-  
+
   try {
     await Promise.all(req.body.events.map(handleEvent));
     res.status(200).json({ success: true });
@@ -72,34 +72,36 @@ async function handleEvent(event) {
   // ✅ CHECK 2: In group/room chat, only respond if mentioned
   if (event.source.type === 'group' || event.source.type === 'room') {
     const mention = event.message.mention;
-    
+    const groupId = event.source.groupId || event.source.roomId;
+
+    let isBotMentioned = false;
+
     // Check if bot is mentioned
     if (mention && mention.mentionees) {
-      const isBotMentioned = mention.mentionees.some(
-      mentionee => mentionee.userId === botUserId
+      isBotMentioned = mention.mentionees.some(
+        mentionee => mentionee.userId === botUserId
       );
-      
-      if (isBotMentioned) {
-      console.log(`👥 Mentioned in group: ${userMessage}`);
-      
-      // Remove @mention from message for cleaner processing
-      let cleanMessage = userMessage;
-      mention.mentionees.forEach(mentionee => {
-        // Remove @display_name from message
-        cleanMessage = cleanMessage.replace(`@${mentionee.userId}`, '').trim();
-      });
-      
-      return await processMessage(event, userId, cleanMessage || userMessage);
-      }
     }
-    
+
     // Check for text mention (e.g., from computer clients that can't use @mention)
     if (userMessage.toLowerCase().includes(`@${botDisplayName}`.toLowerCase())) {
-      console.log(`👥 Text mentioned in group: ${userMessage}`);
-      const cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
-      return await processMessage(event, userId, cleanMessage || userMessage);
+      isBotMentioned = true;
     }
-    
+
+    if (isBotMentioned) {
+      console.log(`👥 Mentioned in group: ${userMessage}`);
+
+      const cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
+      if (cleanMessage.length === 0) {
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '幹嘛? 有事嗎你',
+        });
+      }
+
+      return await processMessage(event, groupId, cleanMessage);
+    }
+
     // Not mentioned, ignore
     console.log(`🔇 Not mentioned in group, ignoring message`);
     return null;
@@ -112,34 +114,34 @@ async function processMessage(event, userId, userMessage) {
   // Check rate limit (10 requests per minute)
   const now = Date.now();
   const oneMinuteAgo = now - 60000; // 60 seconds
-  
+
   if (!userRequestTimestamps.has(userId)) {
     userRequestTimestamps.set(userId, []);
   }
-  
+
   const timestamps = userRequestTimestamps.get(userId);
-  
+
   // Remove timestamps older than 1 minute
   const recentTimestamps = timestamps.filter(timestamp => timestamp > oneMinuteAgo);
-  
+
   // Check if user has exceeded rate limit
-  if (recentTimestamps.length >= 10) {
+  if (recentTimestamps.length >= 6) {
     console.log(`⚠️ Rate limit exceeded for user ${userId}`);
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: '你問題太多了!',
     });
   }
-  
+
   // Add current timestamp
   recentTimestamps.push(now);
   userRequestTimestamps.set(userId, recentTimestamps);
-  
+
   // Handle reset command
   if (userMessage.toLowerCase() === '/reset') {
     conversations.delete(userId);
     console.log('🔄 Chat reset');
-    
+
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: '🔄 Conversation history cleared!',
@@ -163,8 +165,8 @@ async function processMessage(event, userId, userMessage) {
     const history = conversations.get(userId);
     history.push({ role: 'user', content: userMessage });
 
-    // Keep last 10 messages
-    if (history.length > 10) {
+    // Keep last 20 messages
+    if (history.length > 20) {
       history.splice(0, 2);
     }
 
@@ -193,7 +195,7 @@ async function processMessage(event, userId, userMessage) {
 
   } catch (error) {
     console.error('❌ AI Error:', error);
-    
+
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: '😅 Sorry, something went wrong!',

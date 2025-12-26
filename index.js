@@ -91,7 +91,7 @@ async function handleEvent(event) {
     if (isBotMentioned) {
       console.log(`👥 Mentioned in group: ${userMessage}`);
 
-      const cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
+      let cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
       if (cleanMessage.length === 0) {
         return client.replyMessage(event.replyToken, {
           type: 'text',

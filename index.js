@@ -99,6 +99,8 @@ async function handleEvent(event) {
         });
       }
 
+      cleanMessage = `${userId} says: ${cleanMessage}`;
+
       return await processMessage(event, groupId, cleanMessage);
     }
 

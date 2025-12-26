@@ -180,7 +180,7 @@ async function processMessage(event, userId, userMessage) {
         { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
         ...history
       ],
-      model: 'moonshotai/kimi-k2-instruct',
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
       temperature: 0.7,
       max_tokens: 500,
     });

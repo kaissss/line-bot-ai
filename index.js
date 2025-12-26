@@ -180,7 +180,7 @@ async function processMessage(event, userId, userMessage) {
         { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
         ...history
       ],
-      model: 'llama-3.3-70b-versatile',
+      model: 'moonshotai/kimi-k2-instruct',
       temperature: 0.7,
       max_tokens: 500,
     });

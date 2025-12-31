@@ -156,14 +156,14 @@ async function processMessage(event, roomId, userId, userMessage) {
   if (userMessage.toLowerCase() === '/help') {
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '🤖 Commands:\n/reset - Clear chat\n/help - Show this\n\n💡 In groups, mention me (@bot) to chat!',
+      text: '🤖 Commands:\n/image - Generate an image\n/reset - Clear chat\n/help - Show this\n\n💡 In groups, mention me (@bot) to chat!',
     });
   }
 
   // Handle image generation command
   if (userMessage.toLowerCase().startsWith('/image ')) {
-    const prompt = userMessage.substring(7).trim();
-    if (!prompt) {
+    const userPrompt = userMessage.substring(7).trim();
+    if (!userPrompt) {
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: 'Please provide a prompt for image generation.',
@@ -171,7 +171,7 @@ async function processMessage(event, roomId, userId, userMessage) {
     }
 
     try {
-      const imageUrl = await generateImage(prompt);
+      const imageUrl = await generateImage(userPrompt);
       const replyMessages = [
         {
           type: 'text',

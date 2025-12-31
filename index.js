@@ -91,7 +91,7 @@ async function handleEvent(event) {
     if (isBotMentioned) {
       console.log(`👥 Mentioned in group: ${userMessage}`);
 
-      let cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
+      let cleanMessage = userMessage.replace(new RegExp(`@${botDisplayName}`, 'i'), '').trim();
 
       return await processMessage(event, groupId, userId, cleanMessage);
     }

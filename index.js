@@ -66,7 +66,7 @@ async function handleEvent(event) {
   // ✅ CHECK 1: In 1-on-1 chat, always respond
   if (event.source.type === 'user') {
     console.log(`👤 Direct message from ${userId}: ${userMessage}`);
-    return await processMessage(event, userId, userMessage);
+    return await processMessage(event, userId, userId, userMessage);
   }
 
   // ✅ CHECK 2: In group/room chat, only respond if mentioned
@@ -92,16 +92,8 @@ async function handleEvent(event) {
       console.log(`👥 Mentioned in group: ${userMessage}`);
 
       let cleanMessage = userMessage.replace(`@${botDisplayName}`, '').trim();
-      if (cleanMessage.length === 0) {
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '幹嘛? 有事嗎你',
-        });
-      }
 
-      cleanMessage = `${userId} says: ${cleanMessage}`;
-
-      return await processMessage(event, groupId, cleanMessage);
+      return await processMessage(event, groupId, userId, cleanMessage);
     }
 
     // Not mentioned, ignore
@@ -112,7 +104,14 @@ async function handleEvent(event) {
   return null;
 }
 
-async function processMessage(event, userId, userMessage) {
+async function processMessage(event, roomId, userId, userMessage) {
+  if (!userMessage || userMessage.trim() === '') {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '幹嘛? 有事嗎你',
+      });
+  }
+
   // Check rate limit (10 requests per minute)
   const now = Date.now();
   const oneMinuteAgo = now - 60000; // 60 seconds
@@ -141,7 +140,7 @@ async function processMessage(event, userId, userMessage) {
 
   // Handle reset command
   if (userMessage.toLowerCase() === '/reset') {
-    conversations.delete(userId);
+    conversations.delete(roomId);
     console.log('🔄 Chat reset');
 
     return client.replyMessage(event.replyToken, {
@@ -160,12 +159,28 @@ async function processMessage(event, userId, userMessage) {
 
   try {
     // Initialize conversation history
-    if (!conversations.has(userId)) {
-      conversations.set(userId, []);
+    if (!conversations.has(roomId)) {
+      conversations.set(roomId, []);
     }
 
-    const history = conversations.get(userId);
-    history.push({ role: 'user', content: userMessage });
+    const history = conversations.get(roomId);
+    if(roomId === userId){
+      // 1-on-1 chat, no need to prefix user ID
+      history.push({ role: 'user', content: userMessage });
+    }
+    else{
+      // Group chat, prefix user ID
+
+      // Get user display name
+      let userDisplayName = 'User';
+      try {
+        const profile = await client.getProfile(userId);
+        userDisplayName = profile.displayName;
+      } catch (error) {
+        console.error('Failed to get user profile:', error);
+      }
+      history.push({ role: 'user', content: `UserID ${userId}(${userDisplayName}) says: ${userMessage}` });
+    }
 
     // Keep last 20 messages
     if (history.length > 20) {

@@ -105,6 +105,8 @@ async function handleEvent(event) {
 }
 
 async function processMessage(event, roomId, userId, userMessage) {
+  console.log(`💬 Processing message from ${userId} in room ${roomId}: '${userMessage}'`);
+
   if (!userMessage || userMessage.trim() === '') {
       return client.replyMessage(event.replyToken, {
         type: 'text',
@@ -165,11 +167,11 @@ async function processMessage(event, roomId, userId, userMessage) {
 
     const history = conversations.get(roomId);
     if(roomId === userId){
-      // 1-on-1 chat, no need to prefix user ID
+      // 1-on-1 chat, no need to prefix user info
       history.push({ role: 'user', content: userMessage });
     }
     else{
-      // Group chat, prefix user ID
+      // Group chat, prefix user ID & name
 
       // Get user display name
       let userDisplayName = 'User';

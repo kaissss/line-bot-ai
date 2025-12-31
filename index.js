@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
 const Groq = require('groq-sdk');
+const axios = require('axios');
 
 const app = express();
 
@@ -159,6 +160,40 @@ async function processMessage(event, roomId, userId, userMessage) {
     });
   }
 
+  // Handle image generation command
+  if (userMessage.toLowerCase().startsWith('/image ')) {
+    const prompt = userMessage.substring(7).trim();
+    if (!prompt) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'Please provide a prompt for image generation.',
+      });
+    }
+
+    try {
+      const imageUrl = await generateImage(prompt);
+      const replyMessages = [
+        {
+          type: 'text',
+          text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
+        },
+        {
+          type: 'image',
+          originalContentUrl: imageUrl,
+          previewImageUrl: imageUrl
+        }
+      ];
+
+      return client.replyMessage(event.replyToken, replyMessages);
+    } catch (error) {
+      console.error('❌ Image generation error:', error);
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'Failed to generate image.',
+      });
+    }
+  }
+
   try {
     // Initialize conversation history
     if (!conversations.has(roomId)) {
@@ -220,6 +255,11 @@ async function processMessage(event, roomId, userId, userMessage) {
       text: '😅 Sorry, something went wrong!',
     });
   }
+}
+
+async function generateImage(prompt) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
 }
 
 const PORT = process.env.PORT || 3000;

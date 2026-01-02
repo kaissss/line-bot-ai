@@ -159,9 +159,7 @@ async function generateImage(prompt) {
   }
 }
 
-async function handleGoogleCommand(event, userMessage) {
-  const searchQuery = userMessage.substring(8).trim();
-  
+async function handleGoogleCommand(event, searchQuery, num = 5) {
   if (!searchQuery) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -184,7 +182,7 @@ async function handleGoogleCommand(event, userMessage) {
         key: GOOGLE_API_KEY,
         cx: GOOGLE_CX,
         q: searchQuery,
-        num: 5
+        num: num
       },
       timeout: 10000 // 10 second timeout
     });
@@ -387,8 +385,21 @@ async function processMessage(event, roomId, userId, userMessage) {
 
   // Handle google search command
   if (userMessage.toLowerCase().startsWith('/google ')) {
-    return await handleGoogleCommand(event, userMessage);
+    const args = userMessage.substring(8).trim();
+    let searchQuery = args;
+    let num = 3; // default
+    
+    // Check for -n flag
+    const nFlagMatch = args.match(/-n\s+(\d+)/);
+    if (nFlagMatch) {
+      num = parseInt(nFlagMatch[1], 10);
+      num = Math.min(Math.max(num, 1), 10); // clamp between 1-10
+      searchQuery = args.replace(/-n\s+\d+/, '').trim();
+    }
+    
+    return await handleGoogleCommand(event, searchQuery, num);
   }
+
 
   // Default: Handle with Groq AI chat
   return await handleGroqChat(event, roomId, userId, userMessage);

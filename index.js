@@ -259,7 +259,12 @@ async function processMessage(event, roomId, userId, userMessage) {
 
 async function generateImage(prompt) {
   const encodedPrompt = encodeURIComponent(prompt);
-  return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+  
+  // Call it in advance to trigger generation
+  await axios.get(imageUrl);
+  
+  return imageUrl;
 }
 
 const PORT = process.env.PORT || 3000;

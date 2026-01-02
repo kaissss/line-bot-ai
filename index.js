@@ -32,7 +32,8 @@ async function getBotInfo() {
     console.log('✅ Bot Username:', botUsername);
     console.log('✅ Display Name:', botDisplayName);
   } catch (error) {
-    console.error('Failed to get bot info:', error);
+    console.error('❌ Failed to get bot info:', error.message);
+    console.error('Error details:', error.response?.data || error);
   }
 }
 
@@ -105,14 +106,223 @@ async function handleEvent(event) {
   return null;
 }
 
+async function handleImageCommand(event, userMessage) {
+  const userPrompt = userMessage.substring(7).trim();
+  
+  if (!userPrompt) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'Please provide a prompt for image generation.',
+    });
+  }
+
+  try {
+    console.log(`🎨 Generating image for prompt: "${userPrompt}"`);
+    const imageUrl = await generateImage(userPrompt);
+    
+    const replyMessages = [
+      {
+        type: 'text',
+        text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
+      },
+      {
+        type: 'image',
+        originalContentUrl: imageUrl,
+        previewImageUrl: imageUrl
+      }
+    ];
+
+    return client.replyMessage(event.replyToken, replyMessages);
+  } catch (error) {
+    console.error('❌ Image generation error:', error.message);
+    console.error('Error details:', error.response?.data || error);
+    
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '😅 Failed to generate image. Please try again later.',
+    });
+  }
+}
+async function generateImage(prompt) {
+  try {
+    const encodedPrompt = encodeURIComponent(prompt);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+
+    // Call it in advance to trigger generation
+    await axios.get(imageUrl, { timeout: 30000 }); // 30 second timeout
+
+    return imageUrl;
+  } catch (error) {
+    console.error('❌ Error triggering image generation:', error.message);
+    // Still return the URL even if pre-fetch fails
+    return `https://upload.wikimedia.org/wikipedia/commons/3/3b/Windows_9X_BSOD.png`;
+  }
+}
+
+async function handleGoogleCommand(event, userMessage) {
+  const searchQuery = userMessage.substring(8).trim();
+  
+  if (!searchQuery) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'Please provide a search query.',
+    });
+  }
+
+  try {
+    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+    const GOOGLE_CX = process.env.GOOGLE_CX;
+    
+    if (!GOOGLE_API_KEY || !GOOGLE_CX) {
+      throw new Error('Google API credentials not configured');
+    }
+    
+    console.log(`🔍 Searching Google for: "${searchQuery}"`);
+    
+    const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
+      params: {
+        key: GOOGLE_API_KEY,
+        cx: GOOGLE_CX,
+        q: searchQuery,
+        num: 5
+      },
+      timeout: 10000 // 10 second timeout
+    });
+    
+    if (response.data.items && response.data.items.length > 0) {
+      const results = response.data.items;
+      let resultText = `🔍 Search results for "${searchQuery}":\n\n`;
+      
+      results.forEach((item, index) => {
+        resultText += `${index + 1}. ${item.title}\n${item.link}\n${item.snippet}\n\n`;
+      });
+      
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: resultText.trim(),
+      });
+    } else {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '🤷 No results found for your search.',
+      });
+    }
+  } catch (error) {
+    console.error('❌ Google search error:', error.message);
+    
+    if (error.response) {
+      console.error('API response error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+    } else {
+      console.error('Error details:', error);
+    }
+    
+    let errorMessage = '😅 Failed to perform search. Please try again later.';
+    
+    if (error.message.includes('credentials not configured')) {
+      errorMessage = '⚙️ Google search is not configured properly.';
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = '⏱️ Search timed out. Please try again.';
+    }
+    
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: errorMessage,
+    });
+  }
+}
+
+async function handleGroqChat(event, roomId, userId, userMessage) {
+  try {
+    // Initialize conversation history
+    if (!conversations.has(roomId)) {
+      conversations.set(roomId, []);
+    }
+
+    const history = conversations.get(roomId);
+    
+    if (roomId === userId) {
+      // 1-on-1 chat, no need to prefix user info
+      history.push({ role: 'user', content: userMessage });
+    } else {
+      // Group chat, prefix user ID & name
+      let userDisplayName = 'User';
+      try {
+        const profile = await client.getProfile(userId);
+        userDisplayName = profile.displayName;
+      } catch (error) {
+        console.error('Failed to get user profile:', error.message);
+      }
+      history.push({ role: 'user', content: `UserID ${userId}(${userDisplayName}) says: ${userMessage}` });
+    }
+
+    // Keep last 20 messages
+    if (history.length > 20) {
+      history.splice(0, 2);
+    }
+
+    console.log('🤖 Calling Groq AI...');
+
+    // Call Groq API
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
+        ...history
+      ],
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    const aiResponse = chatCompletion.choices[0].message.content;
+    history.push({ role: 'assistant', content: aiResponse });
+
+    console.log('✅ AI response generated');
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: aiResponse,
+    });
+
+  } catch (error) {
+    console.error('❌ Groq AI Error:', error.message);
+    
+    if (error.response) {
+      console.error('API response error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error('No response received from Groq API');
+    } else {
+      console.error('Error details:', error);
+    }
+
+    let errorMessage = '😅 Sorry, something went wrong with AI!';
+    
+    if (error.message?.includes('API key') || error.message?.includes('api_key')) {
+      errorMessage = '⚙️ Groq API configuration error. Please contact admin.';
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = '⏱️ AI request timed out. Please try again.';
+    } else if (error.response?.status === 429) {
+      errorMessage = '🚦 Rate limit exceeded. Please try again in a moment.';
+    } else if (error.response?.status === 500 || error.response?.status === 503) {
+      errorMessage = '🔧 AI service is temporarily unavailable. Please try again later.';
+    }
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: errorMessage,
+    });
+  }
+}
+
 async function processMessage(event, roomId, userId, userMessage) {
   console.log(`💬 Processing message from ${userId} in room ${roomId}: '${userMessage}'`);
 
   if (!userMessage || userMessage.trim() === '') {
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '幹嘛? 有事嗎你',
-      });
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '幹嘛? 有事嗎你',
+    });
   }
 
   // Check rate limit (10 requests per minute)
@@ -154,118 +364,37 @@ async function processMessage(event, roomId, userId, userMessage) {
 
   // Handle help command
   if (userMessage.toLowerCase() === '/help') {
+    const helpText = [
+      '🤖 Commands:',
+      '/image - Generate an image',
+      '/google - Search Google',
+      '/reset - Clear chat',
+      '/help - Show this',
+      '',
+      '💡 In groups, mention me (@bot) to chat!'
+    ].join('\n');
+    
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '🤖 Commands:\n/image - Generate an image\n/reset - Clear chat\n/help - Show this\n\n💡 In groups, mention me (@bot) to chat!',
+      text: helpText,
     });
   }
 
   // Handle image generation command
   if (userMessage.toLowerCase().startsWith('/image ')) {
-    const userPrompt = userMessage.substring(7).trim();
-    if (!userPrompt) {
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: 'Please provide a prompt for image generation.',
-      });
-    }
-
-    try {
-      const imageUrl = await generateImage(userPrompt);
-      const replyMessages = [
-        {
-          type: 'text',
-          text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
-        },
-        {
-          type: 'image',
-          originalContentUrl: imageUrl,
-          previewImageUrl: imageUrl
-        }
-      ];
-
-      return client.replyMessage(event.replyToken, replyMessages);
-    } catch (error) {
-      console.error('❌ Image generation error:', error);
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: 'Failed to generate image.',
-      });
-    }
+    return await handleImageCommand(event, userMessage);
   }
 
-  try {
-    // Initialize conversation history
-    if (!conversations.has(roomId)) {
-      conversations.set(roomId, []);
-    }
-
-    const history = conversations.get(roomId);
-    if(roomId === userId){
-      // 1-on-1 chat, no need to prefix user info
-      history.push({ role: 'user', content: userMessage });
-    }
-    else{
-      // Group chat, prefix user ID & name
-
-      // Get user display name
-      let userDisplayName = 'User';
-      try {
-        const profile = await client.getProfile(userId);
-        userDisplayName = profile.displayName;
-      } catch (error) {
-        console.error('Failed to get user profile:', error);
-      }
-      history.push({ role: 'user', content: `UserID ${userId}(${userDisplayName}) says: ${userMessage}` });
-    }
-
-    // Keep last 20 messages
-    if (history.length > 20) {
-      history.splice(0, 2);
-    }
-
-    console.log('🤖 Calling AI...');
-
-    // Call Groq API
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
-        ...history
-      ],
-      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const aiResponse = chatCompletion.choices[0].message.content;
-    history.push({ role: 'assistant', content: aiResponse });
-
-    console.log('✅ Sending response');
-
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: aiResponse,
-    });
-
-  } catch (error) {
-    console.error('❌ AI Error:', error);
-
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '😅 Sorry, something went wrong!',
-    });
+  // Handle google search command
+  if (userMessage.toLowerCase().startsWith('/google ')) {
+    return await handleGoogleCommand(event, userMessage);
   }
+
+  // Default: Handle with Groq AI chat
+  return await handleGroqChat(event, roomId, userId, userMessage);
 }
 
-async function generateImage(prompt) {
-  const encodedPrompt = encodeURIComponent(prompt);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-  
-  // Call it in advance to trigger generation
-  await axios.get(imageUrl);
-  
-  return imageUrl;
-}
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

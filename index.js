@@ -217,10 +217,8 @@ async function uploadAudioToCloudinary(audioBuffer) {
     
     // Upload to Cloudinary with 'auto' resource type
     const result = await cloudinary.uploader.upload(dataUri, {
-      resource_type: 'auto', // Changed from 'video' to 'auto'
-      folder: 'line-bot-tts',
-      public_id: `audio_${Date.now()}`,
-      format: 'mp3'
+      resource_type: 'video',
+      folder: 'line-bot-tts'
     });
     
     console.log('✅ Audio uploaded to Cloudinary:', result.secure_url);

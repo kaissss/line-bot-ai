@@ -215,19 +215,18 @@ async function uploadAudioToCloudinary(audioBuffer) {
     const base64Audio = audioBuffer.toString('base64');
     const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
     
-    // Upload to Cloudinary
+    // Upload to Cloudinary with 'auto' resource type
     const result = await cloudinary.uploader.upload(dataUri, {
-      resource_type: 'video', // Cloudinary uses 'video' for audio files
+      resource_type: 'auto', // Changed from 'video' to 'auto'
       folder: 'line-bot-tts',
-      format: 'mp3',
-      type: 'upload'
+      public_id: `audio_${Date.now()}`,
+      format: 'mp3'
     });
     
     console.log('✅ Audio uploaded to Cloudinary:', result.secure_url);
     return result.secure_url;
   } catch (error) {
     console.error('❌ Cloudinary upload error:', error.message);
-    console.error('Error details:', error.response?.data || error);
     throw error;
   }
 }

@@ -3,13 +3,22 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const Groq = require('groq-sdk');
 const axios = require('axios');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
+// LINE Bot configuration
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
+
+// Cloudinary configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const client = new line.Client(config);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -106,43 +115,6 @@ async function handleEvent(event) {
   return null;
 }
 
-async function handleImageCommand(event, userMessage) {
-  const userPrompt = userMessage.substring(7).trim();
-  
-  if (!userPrompt) {
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'Please provide a prompt for image generation.',
-    });
-  }
-
-  try {
-    console.log(`🎨 Generating image for prompt: "${userPrompt}"`);
-    const imageUrl = await generateImage(userPrompt);
-    
-    const replyMessages = [
-      {
-        type: 'text',
-        text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
-      },
-      {
-        type: 'image',
-        originalContentUrl: imageUrl,
-        previewImageUrl: imageUrl
-      }
-    ];
-
-    return client.replyMessage(event.replyToken, replyMessages);
-  } catch (error) {
-    console.error('❌ Image generation error:', error.message);
-    console.error('Error details:', error.response?.data || error);
-    
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '😅 Failed to generate image. Please try again later.',
-    });
-  }
-}
 async function generateImage(prompt) {
   try {
     const encodedPrompt = encodeURIComponent(prompt);
@@ -158,8 +130,180 @@ async function generateImage(prompt) {
     return `https://upload.wikimedia.org/wikipedia/commons/3/3b/Windows_9X_BSOD.png`;
   }
 }
+async function handleImageCommand(event, userMessage) {
+  const userPrompt = userMessage.substring(7).trim();
 
-async function handleGoogleCommand(event, searchQuery, num = 5) {
+  if (!userPrompt) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'Please provide a prompt for image generation.',
+    });
+  }
+
+  try {
+    console.log(`🎨 Generating image for prompt: "${userPrompt}"`);
+
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
+    });
+
+    const imageUrl = await generateImage(userPrompt);
+    const replyMessages = [
+      {
+        type: 'image',
+        originalContentUrl: imageUrl,
+        previewImageUrl: imageUrl
+      }
+    ];
+
+    return client.replyMessage(event.replyToken, replyMessages);
+  } catch (error) {
+    console.error('❌ Image generation error:', error.message);
+    console.error('Error details:', error.response?.data || error);
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '😅 Failed to generate image. Please try again later.',
+    });
+  }
+}
+
+
+async function generateSpeechifyTTS(text, voice = 'henry') {
+  try {
+    const SPEECHIFY_API_KEY = process.env.SPEECHIFY_API_KEY;
+
+    if (!SPEECHIFY_API_KEY) {
+      throw new Error('Speechify API key not configured');
+    }
+
+    console.log(`🎙️ Generating TTS with Speechify for text: "${text.substring(0, 50)}..."`);
+
+    const response = await axios.post(
+      'https://api.sws.speechify.com/v1/audio/speech',
+      {
+        input: text,
+        voice_id: voice,
+        audio_format: 'mp3'
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${SPEECHIFY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer',
+        timeout: 30000 // 30 second timeout
+      }
+    );
+
+    // Convert audio buffer to base64 or return the buffer
+    return Buffer.from(response.data);
+  } catch (error) {
+    console.error('❌ Speechify TTS error:', error.message);
+    if (error.response) {
+      console.error('API response error:', error.response.status);
+    }
+    throw error;
+  }
+}
+async function uploadAudioToCloudinary(audioBuffer) {
+  try {
+    console.log('☁️ Uploading audio to Cloudinary...');
+    
+    // Convert buffer to base64
+    const base64Audio = audioBuffer.toString('base64');
+    const dataUri = `data:audio/mp3;base64,${base64Audio}`;
+    
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(dataUri, {
+      resource_type: 'video', // Cloudinary uses 'video' for audio files
+      folder: 'line-bot-tts',
+      format: 'mp3'
+    });
+    
+    console.log('✅ Audio uploaded to Cloudinary:', result.secure_url);
+    return result.secure_url;
+  } catch (error) {
+    console.error('❌ Cloudinary upload error:', error.message);
+    throw error;
+  }
+}
+async function handleTTSCommand(event, userMessage) {
+  const text = userMessage.substring(5).trim();
+
+  if (!text) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'Please provide text to convert to speech. Usage: /tts <text>',
+    });
+  }
+
+  try {
+    console.log(`🎙️ Converting text to speech: "${text}"`);
+
+    // Send initial message
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '🎙️ Generating speech... Please wait.',
+    });
+
+    // Generate TTS audio
+    const audioBuffer = await generateSpeechifyTTS(text);
+    
+    // Upload to Cloudinary
+    const audioUrl = await uploadAudioToCloudinary(audioBuffer);
+    
+    // Calculate duration (estimate based on text length, ~150 words per minute)
+    const wordCount = text.split(/\s+/).length;
+    const estimatedDuration = Math.ceil((wordCount / 150) * 60 * 1000); // in milliseconds
+
+    // Send audio message to LINE
+    const targetId = event.source.userId || event.source.groupId || event.source.roomId;
+    return client.pushMessage(targetId, {
+      type: 'audio',
+      originalContentUrl: audioUrl,
+      duration: estimatedDuration
+    });
+
+  } catch (error) {
+    console.error('❌ TTS generation error:', error.message);
+
+    let errorMessage = '😅 Failed to generate speech. Please try again later.';
+
+    if (error.message.includes('API key not configured')) {
+      errorMessage = '⚙️ Speechify TTS is not configured properly.';
+    } else if (error.message.includes('Cloudinary')) {
+      errorMessage = '☁️ Failed to upload audio. Please check Cloudinary configuration.';
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = '⏱️ TTS generation timed out. Please try again.';
+    } else if (error.response?.status === 401) {
+      errorMessage = '🔐 Invalid API key.';
+    } else if (error.response?.status === 429) {
+      errorMessage = '🚦 Rate limit exceeded. Please try again in a moment.';
+    }
+
+    const targetId = event.source.userId || event.source.groupId || event.source.roomId;
+    return client.pushMessage(targetId, {
+      type: 'text',
+      text: errorMessage,
+    });
+  }
+}
+
+async function handleGoogleCommand(event, userMessage) {
+    const args = userMessage.substring(8).trim();
+    let searchQuery = args;
+    let num = 3; // default
+
+    // Check for -n flag
+    const nFlagMatch = args.match(/-n\s+(\d+)/);
+    if (nFlagMatch) {
+      num = parseInt(nFlagMatch[1], 10);
+      num = Math.min(Math.max(num, 1), 10); // clamp between 1-10
+      searchQuery = args.replace(/-n\s+\d+/, '').trim();
+    }
+
   if (!searchQuery) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -170,13 +314,13 @@ async function handleGoogleCommand(event, searchQuery, num = 5) {
   try {
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
     const GOOGLE_CX = process.env.GOOGLE_CX;
-    
+
     if (!GOOGLE_API_KEY || !GOOGLE_CX) {
       throw new Error('Google API credentials not configured');
     }
-    
+
     console.log(`🔍 Searching Google for: "${searchQuery}"`);
-    
+
     const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
       params: {
         key: GOOGLE_API_KEY,
@@ -186,15 +330,15 @@ async function handleGoogleCommand(event, searchQuery, num = 5) {
       },
       timeout: 10000 // 10 second timeout
     });
-    
+
     if (response.data.items && response.data.items.length > 0) {
       const results = response.data.items;
       let resultText = `🔍 Search results for "${searchQuery}":\n\n`;
-      
+
       results.forEach((item, index) => {
         resultText += `${index + 1}. ${item.title}\n${item.link}\n${item.snippet}\n\n`;
       });
-      
+
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: resultText.trim(),
@@ -207,7 +351,7 @@ async function handleGoogleCommand(event, searchQuery, num = 5) {
     }
   } catch (error) {
     console.error('❌ Google search error:', error.message);
-    
+
     if (error.response) {
       console.error('API response error:', error.response.status, error.response.data);
     } else if (error.request) {
@@ -215,15 +359,15 @@ async function handleGoogleCommand(event, searchQuery, num = 5) {
     } else {
       console.error('Error details:', error);
     }
-    
+
     let errorMessage = '😅 Failed to perform search. Please try again later.';
-    
+
     if (error.message.includes('credentials not configured')) {
       errorMessage = '⚙️ Google search is not configured properly.';
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       errorMessage = '⏱️ Search timed out. Please try again.';
     }
-    
+
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: errorMessage,
@@ -239,7 +383,7 @@ async function handleGroqChat(event, roomId, userId, userMessage) {
     }
 
     const history = conversations.get(roomId);
-    
+
     if (roomId === userId) {
       // 1-on-1 chat, no need to prefix user info
       history.push({ role: 'user', content: userMessage });
@@ -285,7 +429,7 @@ async function handleGroqChat(event, roomId, userId, userMessage) {
 
   } catch (error) {
     console.error('❌ Groq AI Error:', error.message);
-    
+
     if (error.response) {
       console.error('API response error:', error.response.status, error.response.data);
     } else if (error.request) {
@@ -295,7 +439,7 @@ async function handleGroqChat(event, roomId, userId, userMessage) {
     }
 
     let errorMessage = '😅 Sorry, something went wrong with AI!';
-    
+
     if (error.message?.includes('API key') || error.message?.includes('api_key')) {
       errorMessage = '⚙️ Groq API configuration error. Please contact admin.';
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
@@ -366,12 +510,13 @@ async function processMessage(event, roomId, userId, userMessage) {
       '🤖 Commands:',
       '/image - Generate an image',
       '/google - Search Google',
+      '/tts - Text to speech',
       '/reset - Clear chat',
       '/help - Show this',
       '',
       '💡 In groups, mention me (@bot) to chat!'
     ].join('\n');
-    
+
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: helpText,
@@ -385,21 +530,13 @@ async function processMessage(event, roomId, userId, userMessage) {
 
   // Handle google search command
   if (userMessage.toLowerCase().startsWith('/google ')) {
-    const args = userMessage.substring(8).trim();
-    let searchQuery = args;
-    let num = 3; // default
-    
-    // Check for -n flag
-    const nFlagMatch = args.match(/-n\s+(\d+)/);
-    if (nFlagMatch) {
-      num = parseInt(nFlagMatch[1], 10);
-      num = Math.min(Math.max(num, 1), 10); // clamp between 1-10
-      searchQuery = args.replace(/-n\s+\d+/, '').trim();
-    }
-    
-    return await handleGoogleCommand(event, searchQuery, num);
+    return await handleGoogleCommand(event, userMessage);
   }
 
+  // Handle TTS command
+  if (userMessage.toLowerCase().startsWith('/tts ')) {
+    return await handleTTSCommand(event, userMessage);
+  }
 
   // Default: Handle with Groq AI chat
   return await handleGroqChat(event, roomId, userId, userMessage);

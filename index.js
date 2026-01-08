@@ -207,22 +207,26 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
     throw error;
   }
 }
-async function uploadAudioToCloudinary(audioBuffer) {
+async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()}`) {
   try {
     console.log('☁️ Uploading audio to Cloudinary...');
-    
-    // Convert buffer to base64
-    const base64Audio = audioBuffer.toString('base64');
-    const dataUri = `data:audio/mpeg;base64,${base64Audio}`;
-    
-    // Upload to Cloudinary with 'auto' resource type
-    const result = await cloudinary.uploader.upload(dataUri, {
-      resource_type: 'video',
-      folder: 'line-bot-tts'
+
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: "video", // REQUIRED for audio
+          folder: "tts",
+          public_id: filename,
+          overwrite: true
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result.secure_url);
+        }
+      );
+
+      stream.end(buffer);
     });
-    
-    console.log('✅ Audio uploaded to Cloudinary:', result.secure_url);
-    return result.secure_url;
   } catch (error) {
     console.error('❌ Cloudinary upload error:', error.message);
     throw error;
@@ -249,10 +253,10 @@ async function handleTTSCommand(event, userMessage) {
 
     // Generate TTS audio
     const audioBuffer = await generateSpeechifyTTS(text);
-    
+
     // Upload to Cloudinary
     const audioUrl = await uploadAudioToCloudinary(audioBuffer);
-    
+
     // Calculate duration (estimate based on text length, ~150 words per minute)
     const wordCount = text.split(/\s+/).length;
     const estimatedDuration = Math.ceil((wordCount / 150) * 60 * 1000); // in milliseconds
@@ -291,17 +295,17 @@ async function handleTTSCommand(event, userMessage) {
 }
 
 async function handleGoogleCommand(event, userMessage) {
-    const args = userMessage.substring(8).trim();
-    let searchQuery = args;
-    let num = 3; // default
+  const args = userMessage.substring(8).trim();
+  let searchQuery = args;
+  let num = 3; // default
 
-    // Check for -n flag
-    const nFlagMatch = args.match(/-n\s+(\d+)/);
-    if (nFlagMatch) {
-      num = parseInt(nFlagMatch[1], 10);
-      num = Math.min(Math.max(num, 1), 10); // clamp between 1-10
-      searchQuery = args.replace(/-n\s+\d+/, '').trim();
-    }
+  // Check for -n flag
+  const nFlagMatch = args.match(/-n\s+(\d+)/);
+  if (nFlagMatch) {
+    num = parseInt(nFlagMatch[1], 10);
+    num = Math.min(Math.max(num, 1), 10); // clamp between 1-10
+    searchQuery = args.replace(/-n\s+\d+/, '').trim();
+  }
 
   if (!searchQuery) {
     return client.replyMessage(event.replyToken, {

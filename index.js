@@ -143,13 +143,12 @@ async function handleImageCommand(event, userMessage) {
   try {
     console.log(`🎨 Generating image for prompt: "${userPrompt}"`);
 
-    await client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: `🎨 Generating: "${userPrompt}"\n\nPlease wait a moment...`
-    });
-
     const imageUrl = await generateImage(userPrompt);
     const replyMessages = [
+      {
+        type: 'text',
+        text: `🎨 Generated: "${userPrompt}"`
+      },
       {
         type: 'image',
         originalContentUrl: imageUrl,

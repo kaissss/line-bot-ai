@@ -211,41 +211,46 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
 async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()}`) {
   const tempDir = path.join(__dirname, 'temp');
   const tempFilePath = path.join(tempDir, `${filename}.mp3`);
-  
+
   try {
     console.log('💾 Saving audio file temporarily...');
-    
+
     // Create temp directory if it doesn't exist
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    
+
     // Save buffer to file
     fs.writeFileSync(tempFilePath, audioBuffer);
     console.log('✅ Audio file saved:', tempFilePath);
-    
+
     console.log('☁️ Uploading to Cloudinary...');
-    
+
     // Upload file to Cloudinary
     const result = await cloudinary.uploader.upload(tempFilePath, {
-      resource_type: "video"
+      resource_type: "video", // video works for some audio
+      folder: "tts",
+      public_id: filename,
+      format: "mp3", // Explicitly set format
+      overwrite: true,
+      resource_type: "auto" // Better: use auto instead
     });
-    
+
     console.log('✅ Upload successful:', result.secure_url);
-    
+
     // Delete temp file
     fs.unlinkSync(tempFilePath);
     console.log('🗑️ Temp file deleted');
-    
+
     return result.secure_url;
   } catch (error) {
     console.error('❌ Cloudinary upload error:', error.message);
-    
+
     // Clean up temp file on error
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
-    
+
     throw error;
   }
 }

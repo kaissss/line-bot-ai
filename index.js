@@ -228,10 +228,7 @@ async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()
     
     // Upload file to Cloudinary
     const result = await cloudinary.uploader.upload(tempFilePath, {
-      resource_type: "video", // Required for audio files
-      folder: "tts",
-      public_id: filename,
-      overwrite: true
+      resource_type: "video"
     });
     
     console.log('✅ Upload successful:', result.secure_url);

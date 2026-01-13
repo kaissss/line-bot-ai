@@ -4,6 +4,8 @@ const line = require('@line/bot-sdk');
 const Groq = require('groq-sdk');
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 
@@ -207,27 +209,46 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
   }
 }
 async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()}`) {
+  const tempDir = path.join(__dirname, 'temp');
+  const tempFilePath = path.join(tempDir, `${filename}.mp3`);
+  
   try {
-    console.log('☁️ Uploading audio to Cloudinary...');
-
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: "video", // REQUIRED for audio
-          folder: "tts",
-          public_id: filename,
-          overwrite: true
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result.secure_url);
-        }
-      );
-
-      stream.end(buffer);
+    console.log('💾 Saving audio file temporarily...');
+    
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // Save buffer to file
+    fs.writeFileSync(tempFilePath, audioBuffer);
+    console.log('✅ Audio file saved:', tempFilePath);
+    
+    console.log('☁️ Uploading to Cloudinary...');
+    
+    // Upload file to Cloudinary
+    const result = await cloudinary.uploader.upload(tempFilePath, {
+      resource_type: "video", // Required for audio files
+      folder: "tts",
+      public_id: filename,
+      overwrite: true
     });
+    
+    console.log('✅ Upload successful:', result.secure_url);
+    
+    // Delete temp file
+    fs.unlinkSync(tempFilePath);
+    console.log('🗑️ Temp file deleted');
+    
+    return result.secure_url;
   } catch (error) {
     console.error('❌ Cloudinary upload error:', error.message);
+    
+    // Clean up temp file on error
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+    
     throw error;
   }
 }

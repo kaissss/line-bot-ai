@@ -305,10 +305,7 @@ async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
     // Get the file reference
     const file = gcsBucket.file(destination);
     
-    // Make the file publicly accessible
-    await file.makePublic();
-    
-    // Get public URL
+    // Get public URL (bucket has uniform bucket-level access enabled)
     const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${destination}`;
     
     console.log('✅ Upload successful:', publicUrl);

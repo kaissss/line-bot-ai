@@ -276,53 +276,29 @@ async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
     throw new Error('Google Cloud Storage is not configured');
   }
 
-  const tempDir = path.join(__dirname, 'temp');
-  const tempFilePath = path.join(tempDir, `${filename}.mp3`);
   const destination = `tts/${filename}.mp3`;
 
   try {
-    console.log('💾 Saving audio file temporarily...');
-
-    // Create temp directory if it doesn't exist
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    // Save buffer to file
-    fs.writeFileSync(tempFilePath, audioBuffer);
-    console.log('✅ Audio file saved:', tempFilePath);
-
     console.log('☁️ Uploading to Google Cloud Storage...');
 
-    // Upload file to GCS
-    await gcsBucket.upload(tempFilePath, {
-      destination: destination,
+    // Get file reference
+    const file = gcsBucket.file(destination);
+    
+    // Upload buffer directly to GCS
+    await file.save(audioBuffer, {
       metadata: {
         contentType: 'audio/mpeg'
       }
     });
 
-    // Get the file reference
-    const file = gcsBucket.file(destination);
-    
     // Get public URL (bucket has uniform bucket-level access enabled)
     const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${destination}`;
     
     console.log('✅ Upload successful:', publicUrl);
 
-    // Delete temp file
-    fs.unlinkSync(tempFilePath);
-    console.log('🗑️ Temp file deleted');
-
     return publicUrl;
   } catch (error) {
     console.error('❌ Google Cloud Storage upload error:', error.message);
-
-    // Clean up temp file on error
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
-
     throw error;
   }
 }

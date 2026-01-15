@@ -213,8 +213,7 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
         timeout: 30000 // 30 second timeout
       }
     );
-
-    // Convert audio buffer to base64 or return the buffer
+    console.error('API response error:', response);
     return Buffer.from(response.data);
   } catch (error) {
     console.error('❌ Speechify TTS error:', error.message);

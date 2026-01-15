@@ -38,6 +38,7 @@ if (process.env.GCS_CREDENTIALS && process.env.GCS_BUCKET_NAME) {
   }
 }
 
+
 const client = new line.Client(config);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const conversations = new Map();
@@ -226,12 +227,12 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
           'Authorization': `Bearer ${SPEECHIFY_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        responseType: 'arraybuffer',
+        //responseType: 'arraybuffer',
         timeout: 30000 // 30 second timeout
       }
     );
 
-    return Buffer.from(response.data);
+    return response.data.audio_data; // base64 string
   } catch (error) {
     console.error('❌ Speechify TTS error:', error.message);
     if (error.response) {
@@ -287,11 +288,7 @@ async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()
   }
 }
 
-async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
-  if (!gcsBucket) {
-    throw new Error('Google Cloud Storage is not configured');
-  }
-
+async function uploadAudioToGCS(base64Audio, filename = `tts_${Date.now()}`) {
   const tempDir = path.join(__dirname, 'temp');
   const tempFilePath = path.join(tempDir, `${filename}.mp3`);
   const destination = `tts/${filename}.mp3`;
@@ -305,7 +302,8 @@ async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
     }
 
     // Save buffer to file
-    fs.writeFileSync(tempFilePath, audioBuffer);
+    const buffer = Buffer.from(base64Audio, "base64");
+    fs.writeFileSync(tempFilePath, buffer);
     console.log('✅ Audio file saved:', tempFilePath);
 
     console.log('☁️ Uploading to Google Cloud Storage...');
@@ -320,10 +318,10 @@ async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
 
     // Get the file reference
     const file = gcsBucket.file(destination);
-    
+
     // Get public URL (bucket has uniform bucket-level access enabled)
     const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${destination}`;
-    
+
     console.log('✅ Upload successful:', publicUrl);
 
     // Delete temp file
@@ -363,10 +361,10 @@ async function handleTTSCommand(event, userMessage) {
     });
 
     // Generate TTS audio
-    const audioBuffer = await generateSpeechifyTTS(text);
+    const base64Audio = await generateSpeechifyTTS(text);
 
     // Upload to Google Cloud Storage
-    const audioUrl = await uploadAudioToGCS(audioBuffer);
+    const audioUrl = await uploadAudioToGCS(base64Audio);
 
     // Calculate duration (estimate based on text length, ~150 words per minute)
     const wordCount = text.split(/\s+/).length;

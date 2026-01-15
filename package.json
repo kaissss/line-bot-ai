@@ -19,6 +19,7 @@
     "cloudinary": "^2.8.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "groq-sdk": "^0.37.0"
+    "groq-sdk": "^0.37.0",
+    "powershell": "^2.3.3"
   }
 }

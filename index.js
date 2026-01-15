@@ -71,6 +71,7 @@ app.get('/', (req, res) => {
   res.send('LINE Bot is running! 🤖');
 });
 
+// Production webhook with signature validation
 app.post('/webhook', line.middleware(config), async (req, res) => {
   console.log('📨 Webhook received');
 
@@ -83,7 +84,23 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   }
 });
 
+// Test webhook without signature validation (for Postman/local testing)
+app.post('/webhook/test', express.json(), async (req, res) => {
+  console.log('🧪 Test webhook received');
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+
+  try {
+    await Promise.all(req.body.events.map(handleEvent));
+    res.status(200).json({ success: true, message: 'Test webhook processed' });
+  } catch (err) {
+    console.error('❌ Error:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
 async function handleEvent(event) {
+  console.log('🔔 Handling event:', JSON.stringify(event, null, 2));
+
   // Only handle text messages
   if (event.type !== 'message' || event.message.type !== 'text') {
     return null;
@@ -213,7 +230,7 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
         timeout: 30000 // 30 second timeout
       }
     );
-    console.error('API response error:', response);
+
     return Buffer.from(response.data);
   } catch (error) {
     console.error('❌ Speechify TTS error:', error.message);
@@ -275,29 +292,53 @@ async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
     throw new Error('Google Cloud Storage is not configured');
   }
 
+  const tempDir = path.join(__dirname, 'temp');
+  const tempFilePath = path.join(tempDir, `${filename}.mp3`);
   const destination = `tts/${filename}.mp3`;
 
   try {
+    console.log('💾 Saving audio file temporarily...');
+
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Save buffer to file
+    fs.writeFileSync(tempFilePath, audioBuffer);
+    console.log('✅ Audio file saved:', tempFilePath);
+
     console.log('☁️ Uploading to Google Cloud Storage...');
 
-    // Get file reference
-    const file = gcsBucket.file(destination);
-    
-    // Upload buffer directly to GCS
-    await file.save(audioBuffer, {
+    // Upload file to GCS
+    await gcsBucket.upload(tempFilePath, {
+      destination: destination,
       metadata: {
         contentType: 'audio/mpeg'
       }
     });
 
+    // Get the file reference
+    const file = gcsBucket.file(destination);
+    
     // Get public URL (bucket has uniform bucket-level access enabled)
     const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${destination}`;
     
     console.log('✅ Upload successful:', publicUrl);
 
+    // Delete temp file
+    fs.unlinkSync(tempFilePath);
+    console.log('🗑️ Temp file deleted');
+
     return publicUrl;
   } catch (error) {
     console.error('❌ Google Cloud Storage upload error:', error.message);
+
+    // Clean up temp file on error
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+
     throw error;
   }
 }

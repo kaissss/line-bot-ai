@@ -4,6 +4,7 @@ const line = require('@line/bot-sdk');
 const Groq = require('groq-sdk');
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
+const { Storage } = require('@google-cloud/storage');
 const fs = require('fs');
 const path = require('path');
 
@@ -21,6 +22,21 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+// Google Cloud Storage configuration (optional)
+let gcsBucket = null;
+if (process.env.GCS_CREDENTIALS && process.env.GCS_BUCKET_NAME) {
+  try {
+    const credentials = JSON.parse(process.env.GCS_CREDENTIALS);
+    const storage = new Storage({
+      credentials: credentials
+    });
+    gcsBucket = storage.bucket(process.env.GCS_BUCKET_NAME);
+    console.log('✅ Google Cloud Storage initialized');
+  } catch (error) {
+    console.log('⚠️ Google Cloud Storage not configured:', error.message);
+  }
+}
 
 const client = new line.Client(config);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -254,6 +270,66 @@ async function uploadAudioToCloudinary(audioBuffer, filename = `tts_${Date.now()
     throw error;
   }
 }
+
+async function uploadAudioToGCS(audioBuffer, filename = `tts_${Date.now()}`) {
+  if (!gcsBucket) {
+    throw new Error('Google Cloud Storage is not configured');
+  }
+
+  const tempDir = path.join(__dirname, 'temp');
+  const tempFilePath = path.join(tempDir, `${filename}.mp3`);
+  const destination = `tts/${filename}.mp3`;
+
+  try {
+    console.log('💾 Saving audio file temporarily...');
+
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Save buffer to file
+    fs.writeFileSync(tempFilePath, audioBuffer);
+    console.log('✅ Audio file saved:', tempFilePath);
+
+    console.log('☁️ Uploading to Google Cloud Storage...');
+
+    // Upload file to GCS
+    await gcsBucket.upload(tempFilePath, {
+      destination: destination,
+      metadata: {
+        contentType: 'audio/mpeg'
+      }
+    });
+
+    // Get the file reference
+    const file = gcsBucket.file(destination);
+    
+    // Make the file publicly accessible
+    await file.makePublic();
+    
+    // Get public URL
+    const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${destination}`;
+    
+    console.log('✅ Upload successful:', publicUrl);
+
+    // Delete temp file
+    fs.unlinkSync(tempFilePath);
+    console.log('🗑️ Temp file deleted');
+
+    return publicUrl;
+  } catch (error) {
+    console.error('❌ Google Cloud Storage upload error:', error.message);
+
+    // Clean up temp file on error
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+
+    throw error;
+  }
+}
+
 async function handleTTSCommand(event, userMessage) {
   const text = userMessage.substring(5).trim();
 
@@ -276,8 +352,8 @@ async function handleTTSCommand(event, userMessage) {
     // Generate TTS audio
     const audioBuffer = await generateSpeechifyTTS(text);
 
-    // Upload to Cloudinary
-    const audioUrl = await uploadAudioToCloudinary(audioBuffer);
+    // Upload to Google Cloud Storage
+    const audioUrl = await uploadAudioToGCS(audioBuffer);
 
     // Calculate duration (estimate based on text length, ~150 words per minute)
     const wordCount = text.split(/\s+/).length;

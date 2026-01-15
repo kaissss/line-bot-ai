@@ -371,7 +371,7 @@ async function handleTTSCommand(event, userMessage) {
     const estimatedDuration = Math.ceil((wordCount / 150) * 60 * 1000); // in milliseconds
 
     // Send audio message to LINE
-    const targetId = event.source.userId || event.source.groupId || event.source.roomId;
+    const targetId = event.source.groupId || event.source.roomId || event.source.userId;
     return client.pushMessage(targetId, {
       type: 'audio',
       originalContentUrl: audioUrl,

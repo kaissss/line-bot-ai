@@ -205,7 +205,7 @@ async function handleImageCommand(event, userMessage) {
 }
 
 
-async function generateSpeechifyTTS(text, voice = 'henry') {
+async function generateSpeechifyTTS(text, voice = 'henry', language = null) {
   try {
     const SPEECHIFY_API_KEY = process.env.SPEECHIFY_API_KEY;
 
@@ -215,13 +215,20 @@ async function generateSpeechifyTTS(text, voice = 'henry') {
 
     console.log(`🎙️ Generating TTS with Speechify for text: "${text.substring(0, 50)}..."`);
 
+    const requestBody = {
+      input: text,
+      voice_id: voice,
+      audio_format: 'mp3'
+    };
+
+    // Add language if specified
+    if (language) {
+      requestBody.language = language;
+    }
+
     const response = await axios.post(
       'https://api.sws.speechify.com/v1/audio/speech',
-      {
-        input: text,
-        voice_id: voice,
-        audio_format: 'mp3'
-      },
+      requestBody,
       {
         headers: {
           'Authorization': `Bearer ${SPEECHIFY_API_KEY}`,
@@ -344,33 +351,42 @@ async function uploadAudioToGCS(base64Audio, filename = `tts_${Date.now()}`) {
 async function handleTTSCommand(event, userMessage) {
   let args = userMessage.substring(5).trim();
   let voice = 'henry'; // default voice
+  let language = null; // default language (let API decide)
   let text = args;
 
-  // Check for -v flag
+  // Check for -v flag (voice)
   const vFlagMatch = args.match(/-v\s+(\S+)/);
   if (vFlagMatch) {
     voice = vFlagMatch[1];
-    text = args.replace(/-v\s+\S+/, '').trim();
+    text = text.replace(/-v\s+\S+/, '').trim();
+  }
+
+  // Check for -l flag (language)
+  const lFlagMatch = args.match(/-l\s+(\S+)/);
+  if (lFlagMatch) {
+    language = lFlagMatch[1];
+    text = text.replace(/-l\s+\S+/, '').trim();
   }
 
   if (!text) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: 'Please provide text to convert to speech. Usage: /tts [-v voice] <text>',
+      text: 'Please provide text to convert to speech. Usage: /tts [-v voice] [-l lang] <text>',
     });
   }
 
   try {
-    console.log(`🎙️ Converting text to speech with voice "${voice}": "${text}"`);
+    const voiceInfo = language ? `${voice}, ${language}` : voice;
+    console.log(`🎙️ Converting text to speech with voice "${voice}"${language ? ` and language "${language}"` : ''}: "${text}"`);
 
     // Send initial message
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: `🎙️ Generating speech (${voice})... Please wait.`,
+      text: `🎙️ Generating speech (${voiceInfo})... Please wait.`,
     });
 
     // Generate TTS audio
-    const base64Audio = await generateSpeechifyTTS(text, voice);
+    const base64Audio = await generateSpeechifyTTS(text, voice, language);
 
     // Upload to Google Cloud Storage
     const audioUrl = await uploadAudioToGCS(base64Audio);

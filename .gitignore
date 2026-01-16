@@ -1,6 +1,19 @@
+# Dependencies
 node_modules/
+package-lock.json
+
+# Environment variables
 .env
+
+# System files
 .DS_Store
+
+# IDE
 .vscode/
+.idea/
+
+# Credentials
 gcs-keyfile.json
+
+# Temporary files
 temp/

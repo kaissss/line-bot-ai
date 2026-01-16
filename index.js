@@ -342,26 +342,35 @@ async function uploadAudioToGCS(base64Audio, filename = `tts_${Date.now()}`) {
 }
 
 async function handleTTSCommand(event, userMessage) {
-  const text = userMessage.substring(5).trim();
+  let args = userMessage.substring(5).trim();
+  let voice = 'henry'; // default voice
+  let text = args;
+
+  // Check for -v flag
+  const vFlagMatch = args.match(/-v\s+(\S+)/);
+  if (vFlagMatch) {
+    voice = vFlagMatch[1];
+    text = args.replace(/-v\s+\S+/, '').trim();
+  }
 
   if (!text) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: 'Please provide text to convert to speech. Usage: /tts <text>',
+      text: 'Please provide text to convert to speech. Usage: /tts [-v voice] <text>',
     });
   }
 
   try {
-    console.log(`🎙️ Converting text to speech: "${text}"`);
+    console.log(`🎙️ Converting text to speech with voice "${voice}": "${text}"`);
 
     // Send initial message
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '🎙️ Generating speech... Please wait.',
+      text: `🎙️ Generating speech (${voice})... Please wait.`,
     });
 
     // Generate TTS audio
-    const base64Audio = await generateSpeechifyTTS(text);
+    const base64Audio = await generateSpeechifyTTS(text, voice);
 
     // Upload to Google Cloud Storage
     const audioUrl = await uploadAudioToGCS(base64Audio);

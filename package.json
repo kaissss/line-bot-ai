@@ -5,8 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "test": "node scripts/test-groq.js",
+    "build:css": "tailwindcss -i ./src/views/css/input.css -o ./src/views/css/output.css --minify",
+    "watch:css": "tailwindcss -i ./src/views/css/input.css -o ./src/views/css/output.css --watch",
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "npm run build:css && node src/server.js"
   },
   "keywords": [
     "line",
@@ -27,5 +29,8 @@
     "express": "^5.2.1",
     "groq-sdk": "^0.37.0",
     "powershell": "^2.3.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
   }
 }

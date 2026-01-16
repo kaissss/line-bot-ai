@@ -1,17 +1,21 @@
 require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
+const path = require('path');
 const lineConfig = require('./config/line');
 const { getBotInfo } = require('./utils/botInfo');
 const { handleEvent } = require('./handlers/eventHandler');
 
 const app = express();
 
+// Serve static files (CSS, etc.)
+app.use('/css', express.static(path.join(__dirname, 'views', 'css')));
+
 // Initialize bot info on startup
 getBotInfo();
 
 app.get('/', (req, res) => {
-  res.send('LINE Bot is running! 🤖');
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 // Production webhook with signature validation

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE Bot AI</title>
+  <link rel="stylesheet" href="/css/output.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-2xl w-full">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+      <div class="text-center mb-8">
+        <div class="inline-block p-4 bg-green-100 rounded-full mb-4">
+          <svg class="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h1 class="text-4xl font-bold text-gray-800 mb-2">LINE Bot AI</h1>
+        <p class="text-xl text-green-600 font-semibold">✅ Server is Running!</p>
+      </div>
+      
+      <div class="space-y-6">
+        <div class="bg-gray-50 rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-700 mb-3">🤖 Features</h2>
+          <ul class="space-y-2 text-gray-600">
+            <li class="flex items-center">
+              <span class="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+              AI Chat powered by Groq
+            </li>
+            <li class="flex items-center">
+              <span class="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>
+              AI Image Generation
+            </li>
+            <li class="flex items-center">
+              <span class="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
+              Google Search Integration
+            </li>
+            <li class="flex items-center">
+              <span class="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+              Text-to-Speech (TTS)
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-blue-50 rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-700 mb-3">📡 Endpoints</h2>
+          <div class="space-y-2 font-mono text-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Production Webhook:</span>
+              <code class="bg-white px-3 py-1 rounded text-blue-600">/webhook</code>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Test Webhook:</span>
+              <code class="bg-white px-3 py-1 rounded text-blue-600">/webhook/test</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6 text-white">
+          <h2 class="text-lg font-semibold mb-2">🚀 Ready to Chat!</h2>
+          <p class="text-indigo-100">Add this bot to your LINE and start chatting with AI.</p>
+        </div>
+      </div>
+
+      <div class="mt-8 text-center text-sm text-gray-500">
+        <p>Built with Express.js • LINE Bot SDK • Groq AI</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

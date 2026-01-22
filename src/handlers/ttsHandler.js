@@ -74,7 +74,7 @@ async function handleTTSCommand(client, event, userMessage) {
       errorMessage = '🚦 Rate limit exceeded. Please try again in a moment.';
     }
 
-    const targetId = event.source.userId || event.source.groupId || event.source.roomId;
+    const targetId = event.source.groupId || event.source.roomId || event.source.userId;
     return client.pushMessage(targetId, {
       type: 'text',
       text: errorMessage,

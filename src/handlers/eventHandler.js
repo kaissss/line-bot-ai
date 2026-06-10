@@ -5,6 +5,7 @@ const { handleGoogleCommand } = require('../handlers/searchHandler');
 const { handleTTSCommand } = require('../handlers/ttsHandler');
 const { handleAIChat, resetConversation } = require('../handlers/chatHandler');
 const { handleHelpCommand } = require('../handlers/helpHandler');
+const { handleLuckCommand } = require('../handlers/luckHandler');
 
 async function handleEvent(event) {
   console.log('🔔 Handling event:', JSON.stringify(event, null, 2));
@@ -103,6 +104,11 @@ async function processMessage(event, roomId, userId, userMessage) {
   // Handle TTS command
   if (userMessage.toLowerCase().startsWith('/tts ')) {
     return await handleTTSCommand(client, event, userMessage);
+  }
+
+  // Handle daily luck command
+  if (userMessage.toLowerCase().startsWith('/luck')) {
+    return handleLuckCommand(client, event, userId, userMessage);
   }
 
   // Default: Handle with AI chat

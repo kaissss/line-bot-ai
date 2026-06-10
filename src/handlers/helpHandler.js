@@ -89,6 +89,26 @@ function handleHelpCommand(client, event, userMessage) {
     });
   }
 
+  if (helpArg === '/luck' || helpArg === 'luck') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: [
+        '🔮 TODAY FORTUNE',
+        '',
+        'Usage:',
+        '  /luck',
+        '  /luck <topic>',
+        '',
+        'Get today\'s luck result (吉凶 + scores).',
+        'Result is fixed for the same user on the same day.',
+        '',
+        'Examples:',
+        '  /luck',
+        '  /luck 工作',
+      ].join('\n'),
+    });
+  }
+
   // General help (default)
   const helpText = [
     '🤖 BOT COMMANDS',
@@ -96,11 +116,12 @@ function handleHelpCommand(client, event, userMessage) {
     '/image - Generate AI images',
     '/google - Search Google',
     '/tts - Text to speech',
+    '/luck - Today fortune',
     '/reset - Clear chat history',
     '/help - Show this message',
     '',
     'ℹ️ For detailed help, use:',
-    '/help/image, /help/google, /help/tts',
+    '/help/image, /help/google, /help/tts, /help/luck',
     '',
     '💡 In groups, mention me to chat!'
   ].join('\n');

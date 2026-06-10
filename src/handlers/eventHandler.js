@@ -3,7 +3,7 @@ const { checkRateLimit } = require('../middleware/rateLimit');
 const { handleImageCommand } = require('../handlers/imageHandler');
 const { handleGoogleCommand } = require('../handlers/searchHandler');
 const { handleTTSCommand } = require('../handlers/ttsHandler');
-const { handleGroqChat, resetConversation } = require('../handlers/chatHandler');
+const { handleAIChat, resetConversation } = require('../handlers/chatHandler');
 const { handleHelpCommand } = require('../handlers/helpHandler');
 
 async function handleEvent(event) {
@@ -106,7 +106,7 @@ async function processMessage(event, roomId, userId, userMessage) {
   }
 
   // Default: Handle with AI chat
-  return await handleGroqChat(client, event, roomId, userId, userMessage);
+  return await handleAIChat(client, event, roomId, userId, userMessage);
 }
 
 module.exports = { handleEvent };

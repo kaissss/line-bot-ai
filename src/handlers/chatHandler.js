@@ -3,7 +3,7 @@ const { CONVERSATION } = require('../config/constants');
 
 const conversations = new Map();
 
-async function handleGroqChat(client, event, roomId, userId, userMessage) {
+async function handleAIChat(client, event, roomId, userId, userMessage) {
   try {
     // Initialize conversation history
     if (!conversations.has(roomId)) {
@@ -74,4 +74,4 @@ function resetConversation(roomId) {
   console.log('🔄 Chat reset');
 }
 
-module.exports = { handleGroqChat, resetConversation };
+module.exports = { handleAIChat, resetConversation };

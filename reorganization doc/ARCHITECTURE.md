@@ -265,7 +265,7 @@ test('generates response from AI', async () => {
 ### Integration Tests
 ```javascript
 // test/handlers/chatHandler.test.js
-const { handleGroqChat } = require('../../src/handlers/chatHandler');
+const { handleAIChat } = require('../../src/handlers/chatHandler');
 // Mock LINE client and test handler
 ```
 

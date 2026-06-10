@@ -105,7 +105,7 @@ async function processMessage(event, roomId, userId, userMessage) {
     return await handleTTSCommand(client, event, userMessage);
   }
 
-  // Default: Handle with Groq AI chat
+  // Default: Handle with AI chat
   return await handleGroqChat(client, event, roomId, userId, userMessage);
 }
 

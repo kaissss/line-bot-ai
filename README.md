@@ -9,7 +9,8 @@ line-bot-ai/
 ├── src/
 │   ├── config/              # Configuration files
 │   │   ├── line.js          # LINE Bot configuration
-│   │   ├── groq.js          # Groq AI configuration
+│   │   ├── openrouter.js    # OpenRouter AI configuration
+│   │   ├── groq.js          # Groq AI configuration (legacy)
 │   │   ├── cloudinary.js    # Cloudinary configuration
 │   │   ├── storage.js       # Google Cloud Storage configuration
 │   │   └── constants.js     # Application constants
@@ -21,7 +22,7 @@ line-bot-ai/
 │   │   ├── ttsHandler.js    # Text-to-speech handler
 │   │   └── helpHandler.js   # Help command handler
 │   ├── services/            # External API services
-│   │   ├── aiService.js     # Groq AI service
+│   │   ├── aiService.js     # OpenRouter AI service (Groq legacy function kept)
 │   │   ├── imageService.js  # Image generation service
 │   │   ├── searchService.js # Google search service
 │   │   └── ttsService.js    # Speechify TTS service
@@ -42,7 +43,7 @@ line-bot-ai/
 
 ## 🚀 Features
 
-- **AI Chat**: Powered by Groq AI with conversation history
+- **AI Chat**: Powered by OpenRouter AI with conversation history
 - **Image Generation**: Create AI images from text prompts
 - **Text-to-Speech**: Convert text to audio with multiple voices
 - **Google Search**: Search Google directly from LINE
@@ -62,7 +63,13 @@ npm install
 LINE_CHANNEL_ACCESS_TOKEN=your_token
 LINE_CHANNEL_SECRET=your_secret
 
-# Groq AI
+# OpenRouter AI (Primary)
+OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_MODEL=openai/gpt-oss-120b
+OPENROUTER_SITE_URL=http://localhost:3000
+OPENROUTER_APP_NAME=line-bot-ai
+
+# Groq AI (Optional legacy)
 GROQ_API_KEY=your_groq_key
 GROQ_MODEL=openai/gpt-oss-120b
 

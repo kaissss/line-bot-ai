@@ -7,7 +7,8 @@ module.exports = {
     MAX_HISTORY: 20,
   },
   AI: {
-    MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openai/gpt-oss-120b:free',
     TEMPERATURE: 0.7,
     MAX_TOKENS: 500,
   },

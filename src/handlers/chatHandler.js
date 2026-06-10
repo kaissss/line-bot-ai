@@ -42,7 +42,7 @@ async function handleGroqChat(client, event, roomId, userId, userMessage) {
     });
 
   } catch (error) {
-    console.error('❌ Groq AI Error:', error.message);
+    console.error('❌ AI Error:', error.message);
 
     if (error.response) {
       console.error('API response error:', error.response.status, error.response.data);
@@ -50,8 +50,10 @@ async function handleGroqChat(client, event, roomId, userId, userMessage) {
 
     let errorMessage = '😅 Sorry, something went wrong with AI!';
 
-    if (error.message?.includes('API key') || error.message?.includes('api_key')) {
-      errorMessage = '⚙️ Groq API configuration error. Please contact admin.';
+    const errorMessageText = error.message || '';
+
+    if (/api.*key|key.*api/i.test(errorMessageText)) {
+      errorMessage = '⚙️ AI API configuration error. Please contact admin.';
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       errorMessage = '⏱️ AI request timed out. Please try again.';
     } else if (error.response?.status === 429) {

@@ -1,3 +1,7 @@
+const SUPPORTED_AI_PROVIDERS = new Set(['groq', 'openrouter']);
+const rawProvider = (process.env.AI_PROVIDER || 'groq').toLowerCase();
+const provider = SUPPORTED_AI_PROVIDERS.has(rawProvider) ? rawProvider : 'groq';
+
 module.exports = {
   RATE_LIMIT: {
     MAX_REQUESTS: 6,
@@ -7,6 +11,7 @@ module.exports = {
     MAX_HISTORY: 20,
   },
   AI: {
+    PROVIDER: provider,
     GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openai/gpt-oss-120b:free',
     TEMPERATURE: 0.7,

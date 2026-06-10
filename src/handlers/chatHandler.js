@@ -43,12 +43,14 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
 
   } catch (error) {
     console.error('❌ AI Error:', error.message);
+    console.error('AI provider:', error.provider || 'unknown');
 
     if (error.response) {
       console.error('API response error:', error.response.status, error.response.data);
     }
 
     let errorMessage = '😅 Sorry, something went wrong with AI!';
+    const errorStatus = error.status || error.response?.status;
 
     const errorMessageText = error.message || '';
 
@@ -56,9 +58,9 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
       errorMessage = '⚙️ AI API configuration error. Please contact admin.';
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       errorMessage = '⏱️ AI request timed out. Please try again.';
-    } else if (error.response?.status === 429) {
+    } else if (errorStatus === 429) {
       errorMessage = '🚦 Rate limit exceeded. Please try again in a moment.';
-    } else if (error.response?.status === 500 || error.response?.status === 503) {
+    } else if (errorStatus === 500 || errorStatus === 503) {
       errorMessage = '🔧 AI service is temporarily unavailable. Please try again later.';
     }
 

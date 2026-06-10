@@ -63,6 +63,9 @@ npm install
 LINE_CHANNEL_ACCESS_TOKEN=your_token
 LINE_CHANNEL_SECRET=your_secret
 
+# AI Provider (openrouter or groq)
+AI_PROVIDER=groq
+
 # OpenRouter AI (Primary)
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_MODEL=openai/gpt-oss-120b

@@ -38,6 +38,8 @@ async function handleEvent(event) {
       );
     }
 
+    console.log(`👥 Message in group/room ${groupId} from ${userId}: ${userMessage}`);
+    console.log(`👥 Bot display name: ${getBotDisplayName()}`);
     // Check for text mention (e.g., from computer clients that can't use @mention)
     if (userMessage.toLowerCase().includes(`@${getBotDisplayName()}`.toLowerCase())) {
       isBotMentioned = true;

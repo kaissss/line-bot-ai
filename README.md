@@ -78,6 +78,7 @@ GROQ_MODEL=openai/gpt-oss-120b
 
 # Pollinations AI (Optional - for image generation)
 POLLINATIONS_API_KEY=your_pollinations_api_key
+POLLINATIONS_MODEL=flux
 
 # Google Search (optional)
 GOOGLE_API_KEY=your_google_key

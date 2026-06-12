@@ -1,4 +1,4 @@
-const { client, getBotUserId, getBotDisplayName } = require('../utils/botInfo');
+const { client, ensureBotInfo, getBotUserId, getBotDisplayName } = require('../utils/botInfo');
 const { checkRateLimit } = require('../middleware/rateLimit');
 const { handleImageCommand } = require('../handlers/imageHandler');
 const { handleGoogleCommand } = require('../handlers/searchHandler');
@@ -26,29 +26,39 @@ async function handleEvent(event) {
 
   // ✅ CHECK 2: In group/room chat, only respond if mentioned
   if (event.source.type === 'group' || event.source.type === 'room') {
+    try {
+      await ensureBotInfo();
+    } catch (error) {
+      console.error('⚠️ Unable to refresh bot info before mention check:', error.message);
+    }
+
     const mention = event.message.mention;
     const groupId = event.source.groupId || event.source.roomId;
+    const botUserId = getBotUserId();
+    const botDisplayName = getBotDisplayName();
 
     let isBotMentioned = false;
 
     // Check if bot is mentioned
     if (mention && mention.mentionees) {
       isBotMentioned = mention.mentionees.some(
-        mentionee => mentionee.userId === getBotUserId()
+        mentionee => mentionee.userId === botUserId || mentionee.isSelf === true
       );
     }
 
     console.log(`👥 Message in group/room ${groupId} from ${userId}: ${userMessage}`);
-    console.log(`👥 Bot display name: ${getBotDisplayName()}`);
+    console.log(`👥 Bot display name: ${botDisplayName}`);
     // Check for text mention (e.g., from computer clients that can't use @mention)
-    if (userMessage.toLowerCase().includes(`@${getBotDisplayName()}`.toLowerCase())) {
+    if (botDisplayName && userMessage.toLowerCase().includes(`@${botDisplayName}`.toLowerCase())) {
       isBotMentioned = true;
     }
 
     if (isBotMentioned) {
       console.log(`👥 Mentioned in group: ${userMessage}`);
 
-      let cleanMessage = userMessage.replace(new RegExp(`@${getBotDisplayName()}`, 'i'), '').trim();
+      const cleanMessage = botDisplayName
+        ? userMessage.replace(new RegExp(`@${botDisplayName}`, 'i'), '').trim()
+        : userMessage;
 
       return await processMessage(event, groupId, userId, cleanMessage);
     }

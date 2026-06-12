@@ -2,17 +2,21 @@ const axios = require('axios');
 
 async function generateImage(prompt) {
   try {
-    const encodedPrompt = encodeURIComponent(prompt);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+    const apiKey = process.env.POLLINATIONS_API_KEY;
+    if (!apiKey) {
+      throw new Error('POLLINATIONS_API_KEY is missing.');
+    }
 
-    // Call it in advance to trigger generation
-    await axios.get(imageUrl, { timeout: 30000 }); // 30 second timeout
+    const encodedPrompt = encodeURIComponent(prompt);
+    const imageUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?model=flux&width=1024&height=1024&seed=0&key=${apiKey}`;
+
+    // Trigger generation by calling the URL
+    await axios.get(imageUrl, { timeout: 60000 }); // 60 second timeout for new endpoint
 
     return imageUrl;
   } catch (error) {
-    console.error('❌ Error triggering image generation:', error.message);
-    // Still return the URL even if pre-fetch fails
-    return `https://upload.wikimedia.org/wikipedia/commons/3/3b/Windows_9X_BSOD.png`;
+    console.error('❌ Error generating image:', error.message);
+    throw error;
   }
 }
 

@@ -76,6 +76,9 @@ OPENROUTER_APP_NAME=line-bot-ai
 GROQ_API_KEY=your_groq_key
 GROQ_MODEL=openai/gpt-oss-120b
 
+# Pollinations AI (Optional - for image generation)
+POLLINATIONS_API_KEY=your_pollinations_api_key
+
 # Google Search (optional)
 GOOGLE_API_KEY=your_google_key
 GOOGLE_CX=your_search_engine_id

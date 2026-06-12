@@ -17,7 +17,7 @@ function handleHelpCommand(client, event, userMessage) {
         '  /image cyberpunk city at night',
         '  /image cute cat wearing glasses',
         '',
-        'Powered by Pollinations.ai'
+        'Powered by Pollinations.ai (requires API key)'
       ].join('\n'),
     });
   }

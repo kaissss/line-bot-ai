@@ -136,6 +136,7 @@ async function generateOpencodeResponse(messages) {
 
     const completion = await response.json();
     console.log('Opencode API response:', completion); // Log the entire response for debugging
+    console.log('Opencode API response choices:', completion?.choices?.[0]?.message); // Log the message for debugging
     const aiResponse = completion?.choices?.[0]?.message?.content;
     if (!aiResponse) {
       throw new Error('Opencode returned an empty response.');

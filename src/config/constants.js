@@ -1,4 +1,4 @@
-const SUPPORTED_AI_PROVIDERS = new Set(['groq', 'openrouter']);
+const SUPPORTED_AI_PROVIDERS = new Set(['groq', 'openrouter', 'opencode']);
 const rawProvider = (process.env.AI_PROVIDER || 'groq').toLowerCase();
 const provider = SUPPORTED_AI_PROVIDERS.has(rawProvider) ? rawProvider : 'groq';
 
@@ -14,6 +14,7 @@ module.exports = {
     PROVIDER: provider,
     GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openai/gpt-oss-120b:free',
+    OPENCODE_MODEL: process.env.OPENCODE_MODEL || 'deepseek-v4-flash',
     TEMPERATURE: 0.7,
     MAX_TOKENS: 500,
   },

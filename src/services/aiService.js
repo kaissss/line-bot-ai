@@ -1,3 +1,4 @@
+const { randomUUID } = require('crypto');
 const groq = require('../config/groq');
 const { OPENROUTER_CHAT_COMPLETIONS_URL } = require('../config/openrouter');
 const { OPENCODE_CHAT_COMPLETIONS_URL } = require('../config/opencode');
@@ -97,7 +98,7 @@ async function generateGroqResponse(messages) {
   }
 }
 
-async function generateOpencodeResponse(messages) {
+async function generateOpencodeResponse(messages, sessionId) {
   console.log('🤖 Calling Opencode AI...');
 
   try {
@@ -115,6 +116,7 @@ async function generateOpencodeResponse(messages) {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'x-opencode-session': sessionId || randomUUID(),
       },
       body: JSON.stringify({
         messages: [
@@ -154,9 +156,9 @@ const PROVIDER_SERVICES = {
   opencode: generateOpencodeResponse,
 };
 
-async function generateChatResponse(messages) {
+async function generateChatResponse(messages, sessionId) {
   const providerService = PROVIDER_SERVICES[AI.PROVIDER] || PROVIDER_SERVICES.groq;
-  return providerService(messages);
+  return providerService(messages, sessionId);
 }
 
 module.exports = {

@@ -33,7 +33,7 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
     }
 
     // Call AI service
-    const aiResponse = await generateChatResponse(history);
+    const aiResponse = await generateChatResponse(history, roomId);
     history.push({ role: 'assistant', content: aiResponse });
 
     return client.replyMessage(event.replyToken, {

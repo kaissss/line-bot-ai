@@ -15,7 +15,21 @@ function normalizeProviderError(error, provider) {
   return wrappedError;
 }
 
-async function generateOpenRouterChatResponse(messages) {
+function emptyResponseError(provider) {
+  const error = new Error(`${provider} returned an empty response.`);
+  error.code = 'EMPTY_RESPONSE';
+  return error;
+}
+
+function completionParams(options) {
+  return {
+    temperature: options.temperature ?? AI.TEMPERATURE,
+    max_tokens: options.maxTokens ?? AI.MAX_TOKENS,
+  };
+}
+
+// `messages` must be the full prompt, including any system message.
+async function generateOpenRouterChatResponse(messages, sessionId, options = {}) {
   console.log('🤖 Calling OpenRouter AI...');
 
   try {
@@ -37,13 +51,9 @@ async function generateOpenRouterChatResponse(messages) {
         'X-OpenRouter-Title': process.env.OPENROUTER_APP_NAME || 'line-bot-ai',
       },
       body: JSON.stringify({
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
-          ...messages,
-        ],
+        messages,
         model: AI.OPENROUTER_MODEL,
-        temperature: AI.TEMPERATURE,
-        max_tokens: AI.MAX_TOKENS,
+        ...completionParams(options),
       }),
     });
 
@@ -57,7 +67,7 @@ async function generateOpenRouterChatResponse(messages) {
     const completion = await response.json();
     const aiResponse = completion?.choices?.[0]?.message?.content;
     if (!aiResponse) {
-      throw new Error('OpenRouter returned an empty response.');
+      throw emptyResponseError('OpenRouter');
     }
 
     console.log('✅ OpenRouter AI response generated');
@@ -67,7 +77,7 @@ async function generateOpenRouterChatResponse(messages) {
   }
 }
 
-async function generateGroqResponse(messages) {
+async function generateGroqResponse(messages, sessionId, options = {}) {
   console.log('🤖 Calling Groq AI...');
 
   try {
@@ -77,18 +87,14 @@ async function generateGroqResponse(messages) {
     }
 
     const completion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
-        ...messages,
-      ],
+      messages,
       model: AI.GROQ_MODEL,
-      temperature: AI.TEMPERATURE,
-      max_tokens: AI.MAX_TOKENS,
+      ...completionParams(options),
     });
 
     const aiResponse = completion?.choices?.[0]?.message?.content;
     if (!aiResponse) {
-      throw new Error('Groq returned an empty response.');
+      throw emptyResponseError('Groq');
     }
 
     console.log('✅ Groq AI response generated');
@@ -98,7 +104,7 @@ async function generateGroqResponse(messages) {
   }
 }
 
-async function generateOpencodeResponse(messages, sessionId) {
+async function generateOpencodeResponse(messages, sessionId, options = {}) {
   console.log('🤖 Calling Opencode AI...');
 
   try {
@@ -119,13 +125,9 @@ async function generateOpencodeResponse(messages, sessionId) {
         'x-opencode-session': sessionId || randomUUID(),
       },
       body: JSON.stringify({
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant. Keep responses concise and friendly.' },
-          ...messages,
-        ],
+        messages,
         model: AI.OPENCODE_MODEL,
-        temperature: AI.TEMPERATURE,
-        max_tokens: AI.MAX_TOKENS,
+        ...completionParams(options),
       }),
     });
 
@@ -140,7 +142,7 @@ async function generateOpencodeResponse(messages, sessionId) {
     console.log('Opencode API response message object:', completion?.choices?.[0]?.message); // Log the message for debugging
     const aiResponse = completion?.choices?.[0]?.message?.content;
     if (!aiResponse) {
-      return "無言薯條😐";
+      throw emptyResponseError('Opencode');
     }
 
     console.log('✅ Opencode AI response generated');
@@ -156,9 +158,9 @@ const PROVIDER_SERVICES = {
   opencode: generateOpencodeResponse,
 };
 
-async function generateChatResponse(messages, sessionId) {
+async function generateChatResponse(messages, sessionId, options = {}) {
   const providerService = PROVIDER_SERVICES[AI.PROVIDER] || PROVIDER_SERVICES.groq;
-  return providerService(messages, sessionId);
+  return providerService(messages, sessionId, options);
 }
 
 module.exports = {

@@ -8,7 +8,13 @@ module.exports = {
     TIME_WINDOW: 60000, // 1 minute in milliseconds
   },
   CONVERSATION: {
-    MAX_HISTORY: 20,
+    DEFAULT_SYSTEM_PROMPT: process.env.SYSTEM_PROMPT
+      || 'You are a helpful assistant in a LINE chat. Keep responses concise and friendly, and reply in the user\'s language.',
+    MAX_SYSTEM_PROMPT_LENGTH: 1000,
+    MAX_RECENT_MESSAGES: 20, // compact when recent messages exceed this count
+    MAX_CONTEXT_CHARS: 12000, // ...or when recent messages exceed this many characters
+    KEEP_RECENT_MESSAGES: 8, // messages kept verbatim after auto-compaction (must be even)
+    SUMMARY_MAX_TOKENS: 800,
   },
   AI: {
     PROVIDER: provider,

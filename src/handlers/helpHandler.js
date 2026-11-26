@@ -83,8 +83,39 @@ function handleHelpCommand(client, event, userMessage) {
         '',
         'Usage: /reset',
         '',
-        'Clear the conversation history for AI chat.',
-        'Use this to start a fresh conversation.',
+        'Clear the conversation history and summary for AI chat.',
+        'A custom system prompt is kept (use /system reset to clear it).',
+      ].join('\n'),
+    });
+  }
+
+  if (helpArg === '/system' || helpArg === 'system') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: [
+        '🧠 SYSTEM PROMPT',
+        '',
+        'Usage:',
+        '  /system - Show the current prompt',
+        '  /system <prompt> - Set a prompt for this chat',
+        '  /system reset - Restore the default prompt',
+        '',
+        'Example:',
+        '  /system 你是一位講話很嗆的台灣工程師',
+      ].join('\n'),
+    });
+  }
+
+  if (helpArg === '/context' || helpArg === 'context') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: [
+        '🗜️ CHAT MEMORY',
+        '',
+        'The bot remembers recent messages verbatim and',
+        'automatically summarizes older ones.',
+        '',
+        '/context - Show memory status and summary',
       ].join('\n'),
     });
   }
@@ -118,10 +149,12 @@ function handleHelpCommand(client, event, userMessage) {
     '/tts - Text to speech',
     '/luck - Today fortune',
     '/reset - Clear chat history',
+    '/system - Show/set the AI system prompt',
+    '/context - Show chat memory',
     '/help - Show this message',
     '',
     'ℹ️ For detailed help, use:',
-    '/help/image, /help/google, /help/tts, /help/luck',
+    '/help/image, /help/google, /help/tts, /help/luck, /help/system, /help/context',
     '',
     '💡 In groups, mention me to chat!'
   ].join('\n');

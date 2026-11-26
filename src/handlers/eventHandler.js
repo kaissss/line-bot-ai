@@ -3,7 +3,12 @@ const { checkRateLimit } = require('../middleware/rateLimit');
 const { handleImageCommand } = require('../handlers/imageHandler');
 const { handleGoogleCommand } = require('../handlers/searchHandler');
 const { handleTTSCommand } = require('../handlers/ttsHandler');
-const { handleAIChat, resetConversation } = require('../handlers/chatHandler');
+const { handleAIChat } = require('../handlers/chatHandler');
+const {
+  handleResetCommand,
+  handleSystemCommand,
+  handleContextCommand,
+} = require('../handlers/contextHandler');
 const { handleHelpCommand } = require('../handlers/helpHandler');
 const { handleLuckCommand } = require('../handlers/luckHandler');
 
@@ -89,13 +94,19 @@ async function processMessage(event, roomId, userId, userMessage) {
     });
   }
 
-  // Handle reset command
-  if (userMessage.toLowerCase() === '/reset') {
-    resetConversation(roomId);
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '🔄 Conversation history cleared!',
-    });
+  const command = userMessage.toLowerCase();
+
+  // Handle chat context commands
+  if (command === '/reset') {
+    return handleResetCommand(client, event, roomId);
+  }
+
+  if (/^\/system(\s|$)/.test(command)) {
+    return handleSystemCommand(client, event, roomId, userMessage);
+  }
+
+  if (command === '/context') {
+    return handleContextCommand(client, event, roomId);
   }
 
   // Handle help command

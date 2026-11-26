@@ -1,21 +1,12 @@
 const { generateChatResponse } = require('../services/aiService');
-const { CONVERSATION } = require('../config/constants');
-
-const conversations = new Map();
+const { buildPromptMessages, recordExchange } = require('../services/contextService');
 
 async function handleAIChat(client, event, roomId, userId, userMessage) {
   try {
-    // Initialize conversation history
-    if (!conversations.has(roomId)) {
-      conversations.set(roomId, []);
-    }
+    const isGroup = roomId !== userId;
+    let content = userMessage;
 
-    const history = conversations.get(roomId);
-
-    if (roomId === userId) {
-      // 1-on-1 chat, no need to prefix user info
-      history.push({ role: 'user', content: userMessage });
-    } else {
+    if (isGroup) {
       // Group chat, prefix user ID & name
       let userDisplayName = 'User';
       try {
@@ -24,17 +15,15 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
       } catch (error) {
         console.error('Failed to get user profile:', error.message);
       }
-      history.push({ role: 'user', content: `UserID ${userId}(${userDisplayName}) says: ${userMessage}` });
+      content = `UserID ${userId}(${userDisplayName}) says: ${userMessage}`;
     }
 
-    // Keep last 20 messages
-    if (history.length > CONVERSATION.MAX_HISTORY) {
-      history.splice(0, 2);
-    }
+    const userEntry = { role: 'user', content };
+    const messages = buildPromptMessages(roomId, userEntry, { isGroup });
 
-    // Call AI service
-    const aiResponse = await generateChatResponse(history, roomId);
-    history.push({ role: 'assistant', content: aiResponse });
+    const aiResponse = await generateChatResponse(messages, roomId);
+    // Only successful exchanges enter the context, so failed requests leave no dangling user turn.
+    recordExchange(roomId, userEntry, aiResponse);
 
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -54,7 +43,9 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
 
     const errorMessageText = error.message || '';
 
-    if (/api.*key|key.*api/i.test(errorMessageText)) {
+    if (error.code === 'EMPTY_RESPONSE') {
+      errorMessage = '無言薯條😐';
+    } else if (/api.*key|key.*api/i.test(errorMessageText)) {
       errorMessage = '⚙️ AI API configuration error. Please contact admin.';
     } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       errorMessage = '⏱️ AI request timed out. Please try again.';
@@ -71,9 +62,4 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
   }
 }
 
-function resetConversation(roomId) {
-  conversations.delete(roomId);
-  console.log('🔄 Chat reset');
-}
-
-module.exports = { handleAIChat, resetConversation };
+module.exports = { handleAIChat };

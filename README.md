@@ -17,12 +17,14 @@ line-bot-ai/
 │   ├── handlers/            # Event and command handlers
 │   │   ├── eventHandler.js  # Main event handler
 │   │   ├── chatHandler.js   # AI chat handler
+│   │   ├── contextHandler.js # /reset, /system, /context
 │   │   ├── imageHandler.js  # Image generation handler
 │   │   ├── searchHandler.js # Google search handler
 │   │   ├── ttsHandler.js    # Text-to-speech handler
 │   │   └── helpHandler.js   # Help command handler
 │   ├── services/            # External API services
 │   │   ├── aiService.js     # OpenRouter AI service (Groq legacy function kept)
+│   │   ├── contextService.js # Chat context: system prompt, recent messages, compaction
 │   │   ├── imageService.js  # Image generation service
 │   │   ├── searchService.js # Google search service
 │   │   └── ttsService.js    # Speechify TTS service
@@ -43,7 +45,7 @@ line-bot-ai/
 
 ## 🚀 Features
 
-- **AI Chat**: Powered by OpenRouter AI with conversation history
+- **AI Chat**: Powered by OpenRouter AI with per-chat context: system prompt, recent messages, and automatic history compaction
 - **Image Generation**: Create AI images from text prompts
 - **Text-to-Speech**: Convert text to audio with multiple voices
 - **Google Search**: Search Google directly from LINE
@@ -96,6 +98,9 @@ CLOUDINARY_API_SECRET=your_api_secret
 GCS_CREDENTIALS={"type":"service_account",...}
 GCS_BUCKET_NAME=your_bucket_name
 
+# Default AI system prompt (optional; per chat override via /system)
+SYSTEM_PROMPT=You are a helpful assistant in a LINE chat.
+
 # Server
 PORT=3000
 ```
@@ -110,8 +115,20 @@ npm start
 - `/image <prompt>` - Generate AI images
 - `/google [-n num] <query>` - Search Google
 - `/tts [-v voice] [-l lang] <text>` - Text to speech
-- `/reset` - Clear conversation history
+- `/reset` - Clear conversation history and summary (keeps custom system prompt)
+- `/system [prompt|reset]` - Show, set, or reset this chat's system prompt
+- `/context` - Show chat memory status and summary
 - `/help` - Show help message
+
+## 🧠 Chat Context
+
+Each chat (1-on-1, group, or room) keeps its own in-memory context, sent to the AI as:
+
+1. **System message**: default prompt (`SYSTEM_PROMPT` or built-in) or the chat's `/system` override, a group-chat note, the current time, and the summary of older messages.
+2. **Recent messages**: the latest user/assistant exchanges, verbatim.
+3. **New user message**.
+
+When recent messages exceed 20 messages or 12,000 characters, older messages are summarized in the background (after the reply is sent) and only the last 8 are kept verbatim. If summarization fails, the oldest messages are dropped so memory stays bounded. Limits live in `CONVERSATION` in `src/config/constants.js`. Context is in-memory and lost on restart.
 
 ## 🧪 Testing
 

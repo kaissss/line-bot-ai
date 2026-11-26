@@ -31,5 +31,11 @@ module.exports = {
   SEARCH: {
     DEFAULT_RESULTS: 3,
     MAX_RESULTS: 10,
+    // AI chat: ask the AI whether it can answer alone; otherwise search Google first
+    AUTO_SEARCH_ENABLED: process.env.AUTO_SEARCH !== 'false',
+    AUTO_SEARCH_RESULTS: 5,
+    DECISION_HISTORY_MESSAGES: 6, // recent messages shown to the decision step
+    DECISION_MAX_TOKENS: 800, // includes reasoning tokens on reasoning models
+    DECISION_MIN_CONFIDENCE: 0.8, // search when the AI rates its own understanding below this
   },
 };

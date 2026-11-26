@@ -67,10 +67,31 @@ function needsCompaction(context) {
     || countChars(context.messages) > CONVERSATION.MAX_CONTEXT_CHARS;
 }
 
-async function summarize(roomId, previousSummary, messages) {
-  const transcript = messages
+function formatTranscript(messages) {
+  return messages
     .map(message => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
     .join('\n');
+}
+
+/** Plain-text view of the room's memory (summary + last `limit` messages) for auxiliary prompts. */
+function describeHistory(roomId, limit) {
+  const context = contexts.get(roomId);
+  if (!context) {
+    return '';
+  }
+  const sections = [];
+  if (context.summary) {
+    sections.push(`Summary of the earlier conversation:\n${context.summary}`);
+  }
+  const recent = context.messages.slice(-limit);
+  if (recent.length > 0) {
+    sections.push(`Recent messages:\n${formatTranscript(recent)}`);
+  }
+  return sections.join('\n\n');
+}
+
+async function summarize(roomId, previousSummary, messages) {
+  const transcript = formatTranscript(messages);
 
   const summary = await generateChatResponse([
     { role: 'system', content: SUMMARY_INSTRUCTIONS },
@@ -138,6 +159,7 @@ function resetContext(roomId) {
 module.exports = {
   buildPromptMessages,
   recordExchange,
+  describeHistory,
   setSystemPrompt,
   getContextInfo,
   resetContext,

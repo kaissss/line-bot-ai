@@ -1,5 +1,6 @@
 const { generateChatResponse } = require('../services/aiService');
 const { buildPromptMessages, recordExchange } = require('../services/contextService');
+const { findSearchContext } = require('../services/autoSearchService');
 
 async function handleAIChat(client, event, roomId, userId, userMessage) {
   try {
@@ -19,7 +20,10 @@ async function handleAIChat(client, event, roomId, userId, userMessage) {
     }
 
     const userEntry = { role: 'user', content };
-    const messages = buildPromptMessages(roomId, userEntry, { isGroup });
+    // Search results only enrich this turn's prompt; history keeps the original message.
+    const searchContext = await findSearchContext(roomId, content);
+    const promptEntry = searchContext ? { role: 'user', content: `${content}\n\n${searchContext}` } : userEntry;
+    const messages = buildPromptMessages(roomId, promptEntry, { isGroup });
 
     const aiResponse = await generateChatResponse(messages, roomId);
     // Only successful exchanges enter the context, so failed requests leave no dangling user turn.

@@ -25,6 +25,7 @@ line-bot-ai/
 │   ├── services/            # External API services
 │   │   ├── aiService.js     # OpenRouter AI service (Groq legacy function kept)
 │   │   ├── contextService.js # Chat context: system prompt, recent messages, compaction
+│   │   ├── autoSearchService.js # AI decides if a chat message needs a Google search first
 │   │   ├── imageService.js  # Image generation service
 │   │   ├── searchService.js # Google search service
 │   │   └── ttsService.js    # Speechify TTS service
@@ -46,6 +47,7 @@ line-bot-ai/
 ## 🚀 Features
 
 - **AI Chat**: Powered by OpenRouter AI with per-chat context: system prompt, recent messages, and automatic history compaction
+- **Auto Search**: The AI first checks whether it actually understands/knows the answer; if not, it searches Google and answers from the results
 - **Image Generation**: Create AI images from text prompts
 - **Text-to-Speech**: Convert text to audio with multiple voices
 - **Google Search**: Search Google directly from LINE
@@ -85,6 +87,8 @@ POLLINATIONS_MODEL=flux
 # Google Search (optional)
 GOOGLE_API_KEY=your_google_key
 GOOGLE_CX=your_search_engine_id
+# Auto search before AI chat answers (needs Google keys; set false to disable)
+AUTO_SEARCH=true
 
 # Speechify TTS (optional)
 SPEECHIFY_API_KEY=your_speechify_key
@@ -129,6 +133,15 @@ Each chat (1-on-1, group, or room) keeps its own in-memory context, sent to the 
 3. **New user message**.
 
 When recent messages exceed 20 messages or 12,000 characters, older messages are summarized in the background (after the reply is sent) and only the last 8 are kept verbatim. If summarization fails, the oldest messages are dropped so memory stays bounded. Limits live in `CONVERSATION` in `src/config/constants.js`. Context is in-memory and lost on restart.
+
+## 🔍 Auto Search
+
+Before answering a chat message, the bot asks the AI (with the summary and last 6 messages) whether it can answer correctly on its own. The AI returns JSON: whether the message asks what a term means, the slang/memes/buzzwords it spots, its confidence, a search flag, and a Google query. The bot searches when the AI asks to, **or** the message asks for a term's meaning, **or** contains slang (models often misread slang confidently), **or** confidence is below 0.8. It then searches Google (top 5 results) and adds the titles, snippets, and links to that turn's prompt, so the reply is based on the results. Conversation history stores only the original message.
+
+- Runs only when `GOOGLE_API_KEY` and `GOOGLE_CX` are set and `AUTO_SEARCH` is not `false`.
+- Costs one extra AI call per chat message (plus one Google query when searching).
+- If the decision or the search fails, the bot answers without search.
+- Settings live in `SEARCH` in `src/config/constants.js`.
 
 ## 🧪 Testing
 
